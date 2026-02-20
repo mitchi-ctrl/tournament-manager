@@ -1,0 +1,133 @@
+import React, { useState, useEffect } from 'react';
+import { storage } from '../lib/storage';
+import { Save, RefreshCw } from 'lucide-react';
+
+const Settings = () => {
+    // Load settings once on mount using lazy initializer
+    const [settings, setSettings] = useState(() => {
+        const saved = storage.getSettings();
+        const currentRanks = saved.rankPoints || [];
+        const filledRanks = [...currentRanks];
+        while (filledRanks.length < 20) {
+            filledRanks.push(0);
+        }
+        console.log('Settings Render');
+        return { ...saved, rankPoints: filledRanks.slice(0, 20) };
+    });
+
+    // Removed useEffect data loading to prevent re-render loops
+
+    const handleRankPointChange = (index, value) => {
+        const newRankPoints = [...settings.rankPoints];
+        newRankPoints[index] = parseInt(value) || 0;
+        setSettings({ ...settings, rankPoints: newRankPoints });
+    };
+
+    const handleSave = (e) => {
+        e.preventDefault(); // Prevent default form submission
+        storage.saveSettings(settings); // Use saveSettings wrapper
+        alert('Settings saved!');
+    };
+
+    return (
+        <div className="container">
+            <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                <h1>Settings</h1>
+                <p style={{ color: '#6b7280' }}>Global Configuration</p>
+            </div>
+
+            {/* Access Code Display */}
+            <div className="card" style={{ marginBottom: '2rem', borderLeft: '4px solid #3b82f6' }}>
+                <h3 style={{ marginTop: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '1.5rem' }}>🎫</span> My Access Code
+                </h3>
+                <p style={{ color: '#4b5563', marginBottom: '1rem' }}>
+                    Share this code with viewers so they can see your tournaments.
+                </p>
+                <div style={{
+                    backgroundColor: '#f1f5f9',
+                    padding: '1rem',
+                    borderRadius: '8px',
+                    border: '2px dashed #cbd5e1',
+                    textAlign: 'center',
+                    fontSize: '2rem',
+                    fontWeight: 'bold',
+                    fontFamily: 'monospace',
+                    color: '#0f172a',
+                    letterSpacing: '4px'
+                }}>
+                    {storage.getCurrentUser()?.shareCode || 'N/A'}
+                </div>
+            </div>
+
+            <form onSubmit={handleSave} className="card">
+                <div style={{ marginBottom: '2rem' }}>
+                    <h3 style={{ borderBottom: '2px solid var(--card-border)', paddingBottom: '0.5rem' }}>Kill Points</h3>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginTop: '1rem' }}>
+                        <label style={{ fontWeight: 'bold' }}>Points per Kill:</label>
+                        <input
+                            type="number"
+                            value={settings.killPoint}
+                            onChange={(e) => setSettings({ ...settings, killPoint: parseInt(e.target.value) || 0 })}
+                            style={{ padding: '0.5rem', width: '80px', borderRadius: '4px', border: '1px solid var(--card-border)' }}
+                        />
+                        <span style={{ color: 'var(--text-muted)' }}>pts</span>
+                    </div>
+                </div>
+
+                <div style={{ marginBottom: '2rem' }}>
+                    <h3 style={{ borderBottom: '2px solid var(--card-border)', paddingBottom: '0.5rem' }}>
+                        Rank Points (1st - 20th)
+                    </h3>
+
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+                        {settings.rankPoints.map((pts, idx) => (
+                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '8px', backgroundColor: 'var(--card-bg)', padding: '0.5rem', borderRadius: '6px', border: '1px solid var(--card-border)' }}>
+                                <div style={{
+                                    width: '24px', height: '24px',
+                                    borderRadius: '50%',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: '0.8rem', fontWeight: 'bold',
+                                    backgroundColor: idx < 3 ? '#eab308' : '#374151',
+                                    color: idx < 3 ? 'black' : 'white'
+                                }}>
+                                    {idx + 1}
+                                </div>
+                                <input
+                                    type="number"
+                                    value={pts}
+                                    onChange={(e) => handleRankPointChange(idx, e.target.value)}
+                                    style={{ padding: '0.4rem', width: '60px', borderRadius: '4px', border: '1px solid var(--card-border)' }}
+                                />
+                                <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)' }}>pts</span>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <button
+                    onClick={handleSave}
+                    style={{
+                        width: '100%',
+                        padding: '1rem',
+                        backgroundColor: '#3b82f6',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '1.1rem',
+                        fontWeight: 'bold',
+                        cursor: 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px'
+                    }}
+                >
+                    <Save size={20} /> Save Configuration
+                </button>
+            </form>
+        </div>
+    );
+};
+
+export default Settings;
