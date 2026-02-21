@@ -116,11 +116,8 @@ export const storage = {
         if (error) throw error;
     },
     deleteUser: async (userId) => {
-        // Note: Deleting a user from 'profiles' might be restricted by Foreign Keys or Auth.
-        // Usually you delete from auth.users, but we can't do that from client SDK easily without service role.
-        // For this app, we'll try deleting from profiles, but it might fail if triggers recreate it or FKs exist.
-        // Better to just 'deactivate' or similar, but user asked for delete in UI.
-        const { error } = await supabase.from('profiles').delete().eq('id', userId);
+        // Use the secure RPC function to delete both Auth and Profile data
+        const { error } = await supabase.rpc('delete_user', { target_user_id: userId });
         if (error) throw error;
     },
     regenerateShareCode: async (userId) => {
