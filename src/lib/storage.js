@@ -23,9 +23,20 @@ const mapProfile = (p) => {
 
 const fetchProfile = async (userId, retries = 3) => {
     for (let i = 0; i < retries; i++) {
-        const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).single();
-        if (data) return mapProfile(data);
-        if (error && error.code !== 'PGRST116') console.error("Profile fetch error:", error);
+        try {
+            // Add a 5s timeout to the individual fetch call
+            const fetchPromise = supabase.from('profiles').select('*').eq('id', userId).single();
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('Fetch Timeout')), 5000));
+
+            const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
+
+            if (data) return mapProfile(data);
+            if (error && error.code !== 'PGRST116') {
+                console.warn(`Profile fetch attempt ${i + 1} failed:`, error.message);
+            }
+        } catch (e) {
+            console.warn(`Profile fetch attempt ${i + 1} threw:`, e.message);
+        }
         await new Promise(r => setTimeout(r, 500));
     }
     return null;
@@ -33,6 +44,7 @@ const fetchProfile = async (userId, retries = 3) => {
 
 export const storage = {
     DEFAULT_RULES,
+    fetchProfile, // Expose for App.jsx
 
     init: async () => {
         // No local seeing needed anymore

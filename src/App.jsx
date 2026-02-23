@@ -100,57 +100,63 @@ function App() {
     // Initialize Seed Data (only once)
     useEffect(() => {
         const initStorage = async () => {
-            // Check active session on load
-            const { data: { session } } = await supabase.auth.getSession();
-            if (session) {
-                // Restore session to storage if valid
-                const user = {
-                    ...session.user,
-                    // Try to get role from storage or fetch it, but for now just ensure basic user exists
-                    ...(storage.getCurrentUserSync() || {})
-                };
-                // We should ideally fetch profile here too, but storage.init isn't async in a way that blocks UI render perfectly for this. 
-                // Let's trust storage.login did its job, or if we are reloading, we need to fetch profile.
-                if (!user.role) {
-                    const { data: profileData } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-                    if (profileData) {
-                        // We use a manual mapping here to match storage.js mapProfile logic
-                        const profile = {
-                            username: profileData.username,
-                            role: profileData.role,
-                            shareCode: profileData.share_code,
-                            following: profileData.following || [],
-                            blocked: profileData.blocked || []
-                        };
-                        Object.assign(user, profile);
-                        sessionStorage.setItem('tm_session', JSON.stringify(user));
+            console.log("App initializing...");
+            const initPromise = (async () => {
+                try {
+                    // 1. Check active session
+                    const { data: { session } } = await supabase.auth.getSession();
+                    if (session) {
+                        const currentUser = storage.getCurrentUserSync();
+                        // 2. Fetch or restore profile if needed
+                        if (!currentUser || currentUser.id !== session.user.id || !currentUser.role) {
+                            const profile = await storage.fetchProfile(session.user.id);
+                            if (profile) {
+                                const user = { ...session.user, ...profile };
+                                sessionStorage.setItem('tm_session', JSON.stringify(user));
+                            } else if (!currentUser) {
+                                // Fallback for session found but profile fetch failed
+                                const fallbackUser = { ...session.user, role: 'viewer', username: session.user.email?.split('@')[0] || 'User' };
+                                sessionStorage.setItem('tm_session', JSON.stringify(fallbackUser));
+                            }
+                        }
                     }
+                    await storage.init();
+                } catch (err) {
+                    console.error("Initialization sub-task error:", err);
                 }
+            })();
+
+            // 3. Global timeout (5 seconds) to prevent infinite loading screen
+            const timeoutPromise = new Promise((resolve) => setTimeout(() => {
+                console.warn("App initialization timed out (5s) - forcing UI render");
+                resolve();
+            }, 5000));
+
+            try {
+                await Promise.race([initPromise, timeoutPromise]);
+            } catch (err) {
+                console.error("Initialization race error:", err);
+            } finally {
+                setInitialized(true);
             }
-            await storage.init();
-            setInitialized(true);
         };
+
         initStorage();
 
         // Listen for auth changes
         const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+            console.log("Auth event:", event);
             if (event === 'SIGNED_OUT') {
                 sessionStorage.removeItem('tm_session');
-                // Optional: navigate to login if needed, but might cause loops
             } else if (session) {
                 const currentUser = storage.getCurrentUserSync();
                 if (!currentUser || currentUser.id !== session.user.id) {
-                    const { data: profileData } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-                    const profile = profileData ? {
-                        username: profileData.username,
-                        role: profileData.role,
-                        shareCode: profileData.share_code,
-                        following: profileData.following || [],
-                        blocked: profileData.blocked || []
-                    } : { role: 'viewer', username: session.user.email.split('@')[0], following: [], blocked: [], shareCode: '' };
-
-                    const user = { ...session.user, ...profile };
-                    sessionStorage.setItem('tm_session', JSON.stringify(user));
+                    const profile = await storage.fetchProfile(session.user.id);
+                    const userData = {
+                        ...session.user,
+                        ...(profile || { role: 'viewer', username: session.user.email?.split('@')[0] || 'User' })
+                    };
+                    sessionStorage.setItem('tm_session', JSON.stringify(userData));
                 }
             }
         });
