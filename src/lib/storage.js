@@ -142,7 +142,7 @@ export const storage = {
     },
     // NEW: Tournament Share Code Handling
     unlockTournament: async (code) => {
-        const { data, error } = await supabase.rpc('unlock_tournament_by_code', { code_input: code });
+        const { data, error } = await supabase.rpc('unlock_tournament', { input_code: code });
         if (error) throw error;
         return data; // { success: boolean, tournament_id?: string, message?: string }
     },

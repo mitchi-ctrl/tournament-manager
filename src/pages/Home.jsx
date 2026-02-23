@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { storage } from '../lib/storage';
 import { Trophy, Calendar, Users, ArrowRight, RefreshCw, Search, Key, Star, Plus } from 'lucide-react';
@@ -36,66 +36,61 @@ const Home = () => {
     const [allUsers, setAllUsers] = useState([]); // Cache users for owner name lookup
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const loadData = async (isInitial = false) => {
-            if (isInitial) setLoading(true);
-            try {
-                const [list, users] = await Promise.all([
-                    storage.getTournaments(),
-                    storage.getUsers()
-                ]);
-                setAllUsers(users);
+    const loadData = useCallback(async (isInitial = false) => {
+        if (isInitial) setLoading(true);
+        try {
+            const [list, users] = await Promise.all([
+                storage.getTournaments(),
+                storage.getUsers()
+            ]);
+            setAllUsers(users);
 
-                // Update currentUser with latest data from DB (e.g. shareCode, role changes)
-                const freshUser = users.find(u => u.id === currentUser.id);
-                if (freshUser) {
-                    const hasChanged =
-                        freshUser.shareCode !== currentUser.shareCode ||
-                        freshUser.role !== currentUser.role ||
-                        JSON.stringify(freshUser.following) !== JSON.stringify(currentUser.following) ||
-                        JSON.stringify(freshUser.blocked) !== JSON.stringify(currentUser.blocked);
+            const freshUser = users.find(u => u.id === currentUser.id);
+            if (freshUser) {
+                const hasChanged =
+                    freshUser.shareCode !== currentUser.shareCode ||
+                    freshUser.role !== currentUser.role ||
+                    JSON.stringify(freshUser.following) !== JSON.stringify(currentUser.following) ||
+                    JSON.stringify(freshUser.blocked) !== JSON.stringify(currentUser.blocked) ||
+                    JSON.stringify(freshUser.unlockedTournaments) !== JSON.stringify(currentUser.unlockedTournaments);
 
-                    if (hasChanged) {
-                        const updated = { ...currentUser, ...freshUser };
-                        setCurrentUser(updated);
-                        // Also update sessionStorage to keep it in sync
-                        sessionStorage.setItem('tm_session', JSON.stringify(updated));
-                    }
+                if (hasChanged) {
+                    const updated = { ...currentUser, ...freshUser };
+                    setCurrentUser(updated);
+                    sessionStorage.setItem('tm_session', JSON.stringify(updated));
                 }
-
-                // Multi-Tenant Logic: Filter tournaments based on ownership, superadmin status, or unlock code
-                const accessibleList = list.filter(t => {
-                    const isOwner = t.ownerId === currentUser.id;
-                    const isSuperAdmin = currentUser.role === 'superadmin';
-                    const isUnlocked = (freshUser?.unlockedTournaments || currentUser.unlockedTournaments || []).includes(t.id);
-                    return isOwner || isSuperAdmin || isUnlocked;
-                });
-
-                // Sort: Priority (Active/Upcoming) > Date Desc
-                accessibleList.sort((a, b) => {
-                    const getPriority = (status) => {
-                        if (status === 'upcoming' || status === 'active') return 1;
-                        return 0; // finished
-                    };
-
-                    const prioA = getPriority(a.status);
-                    const prioB = getPriority(b.status);
-
-                    if (prioA !== prioB) return prioB - prioA;
-                    const dateA = new Date(a.createdAt || 0);
-                    const dateB = new Date(b.createdAt || 0);
-                    return dateB - dateA;
-                });
-                setTournaments(accessibleList);
-            } catch (err) {
-                console.error("Home load error:", err);
-            } finally {
-                if (isInitial) setLoading(false);
             }
-        };
 
-        loadData(tournaments.length === 0);
-    }, [currentUser.id]); // ONLY depend on ID to avoid loop from internal updates
+            const accessibleList = list.filter(t => {
+                const isOwner = t.ownerId === currentUser.id;
+                const isSuperAdmin = currentUser.role === 'superadmin';
+                const isUnlocked = (freshUser?.unlockedTournaments || currentUser.unlockedTournaments || []).includes(t.id);
+                return isOwner || isSuperAdmin || isUnlocked;
+            });
+
+            accessibleList.sort((a, b) => {
+                const getPriority = (status) => {
+                    if (status === 'upcoming' || status === 'active') return 1;
+                    return 0;
+                };
+                const prioA = getPriority(a.status);
+                const prioB = getPriority(b.status);
+                if (prioA !== prioB) return prioB - prioA;
+                const dateA = new Date(a.createdAt || 0);
+                const dateB = new Date(b.createdAt || 0);
+                return dateB - dateA;
+            });
+            setTournaments(accessibleList);
+        } catch (err) {
+            console.error("Home load error:", err);
+        } finally {
+            if (isInitial) setLoading(false);
+        }
+    }, [currentUser.id]);
+
+    useEffect(() => {
+        loadData(true);
+    }, [loadData]);
 
     // Search Filtering
     useEffect(() => {
@@ -119,23 +114,7 @@ const Home = () => {
             if (result.success) {
                 setShareCodeInput('');
                 alert('大会が解放されました！');
-
-                // Fetch fresh data
-                const [list, users] = await Promise.all([
-                    storage.getTournaments(),
-                    storage.getUsers()
-                ]);
-
-                const freshUser = users.find(u => u.id === currentUser.id);
-                if (freshUser) {
-                    const updated = { ...currentUser, ...freshUser };
-                    setCurrentUser(updated);
-                    sessionStorage.setItem('tm_session', JSON.stringify(updated));
-                }
-
-                setAllUsers(users);
-                // The accessibleList logic in useEffect will handle visibility of the new tournament 
-                // when it triggers due to currentUser update.
+                await loadData(false);
             } else {
                 alert(result.message || '無効なアクセスコードです');
             }
