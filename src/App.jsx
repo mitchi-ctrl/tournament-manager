@@ -17,9 +17,13 @@ import Guide from './pages/Guide';
 import Settings from './pages/Settings';
 
 // Private Route Wrapper
-const PrivateRoute = ({ children, adminOnly = false }) => {
+const PrivateRoute = ({ children, adminOnly = false, superAdminOnly = false }) => {
     const user = storage.getCurrentUser();
     if (!user) return <Navigate to="/login" />;
+
+    if (superAdminOnly && user.role !== 'superadmin') {
+        return <div style={{ padding: '2rem', textAlign: 'center', color: '#ef4444' }}>Access Denied: SuperAdmin Rights Required</div>;
+    }
 
     if (adminOnly && user.role !== 'admin' && user.role !== 'superadmin') {
         return <div style={{ padding: '2rem', textAlign: 'center', color: '#ef4444' }}>Access Denied: Admin Rights Required</div>;
@@ -50,7 +54,7 @@ const NavBar = () => {
                 <Link to="/" className={isActive('/')}>ホーム</Link>
                 <Link to="/guide" className={isActive('/guide')}>使い方</Link>
 
-                {(user.role === 'admin' || user.role === 'superadmin') && (
+                {(user.role === 'superadmin') && (
                     <>
                         <Link to="/admin-users" className={isActive('/admin-users')}>管理</Link>
                     </>
@@ -185,8 +189,8 @@ function App() {
 
                     {/* Admin Only Routes */}
                     <Route path="/create" element={<PrivateRoute adminOnly={true}><TournamentCreate /></PrivateRoute>} />
-                    {/* Members page removed as per request */}
-                    <Route path="/admin-users" element={<PrivateRoute adminOnly={true}><AdminUsers /></PrivateRoute>} />
+                    {/* SuperAdmin Only Routes */}
+                    <Route path="/admin-users" element={<PrivateRoute superAdminOnly={true}><AdminUsers /></PrivateRoute>} />
                 </Routes>
             </div>
         </Router>
