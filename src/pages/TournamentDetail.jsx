@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { storage } from '../lib/storage';
 import { supabase } from '../lib/supabase';
-import { Trophy, ArrowLeft, Target, Medal, Edit, Trash2, MessageCircle, Image as ImageIcon, Send, X, UserPlus, Check, Search, Plus, Ban, BookOpen, Crown } from 'lucide-react';
+import { Trophy, ArrowLeft, Target, Medal, Edit, Trash2, MessageCircle, Image as ImageIcon, Send, X, UserPlus, Check, Search, Plus, Ban, BookOpen, Crown, Key, Copy, RefreshCw } from 'lucide-react';
 
 
 const EditScheduleModal = ({ tournament, onClose, onSave }) => {
@@ -2097,8 +2097,81 @@ const TournamentDetail = () => {
                                     ))}
                                 </div>
                             )}
+                            {/* Share Code Section - Admin Only */}
+                            {canManage && (
+                                <div style={{
+                                    marginTop: '1rem',
+                                    padding: '0.75rem 1rem',
+                                    backgroundColor: 'rgba(234, 179, 8, 0.1)',
+                                    borderRadius: '8px',
+                                    border: '1px solid rgba(234, 179, 8, 0.2)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    flexWrap: 'wrap',
+                                    gap: '10px'
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                        <div style={{ backgroundColor: '#eab308', color: 'black', width: '32px', height: '32px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                            <Key size={18} />
+                                        </div>
+                                        <div>
+                                            <div style={{ fontSize: '0.75rem', color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em' }}>アクセスコード</div>
+                                            <div style={{ fontSize: '1.25rem', fontWeight: 'bold', fontFamily: 'monospace', color: 'white' }}>{tournament.shareCode}</div>
+                                        </div>
+                                    </div>
+                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                        <button
+                                            onClick={() => {
+                                                navigator.clipboard.writeText(tournament.shareCode);
+                                                alert('コードをコピーしました');
+                                            }}
+                                            style={{
+                                                background: '#374151',
+                                                border: 'none',
+                                                color: 'white',
+                                                padding: '6px 12px',
+                                                borderRadius: '6px',
+                                                fontSize: '0.85rem',
+                                                fontWeight: 'bold',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px'
+                                            }}
+                                        >
+                                            <Copy size={14} /> コピー
+                                        </button>
+                                        <button
+                                            onClick={async () => {
+                                                if (confirm('重要: アクセスコードを再生成しますか？\n現在のコードを知っている一般ユーザーは、次回からこの大会を見られなくなります。')) {
+                                                    try {
+                                                        const newCode = await storage.regenerateTournamentShareCode(tournament.id);
+                                                        setTournament({ ...tournament, shareCode: newCode });
+                                                    } catch (e) {
+                                                        alert('エラーが発生しました: ' + e.message);
+                                                    }
+                                                }
+                                            }}
+                                            style={{
+                                                background: 'transparent',
+                                                border: '1px solid #4b5563',
+                                                color: '#9ca3af',
+                                                padding: '6px 12px',
+                                                borderRadius: '6px',
+                                                fontSize: '0.85rem',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '6px'
+                                            }}
+                                        >
+                                            <RefreshCw size={14} /> 再生成
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                        {/* Status Dropdown - Moved to Top Right - Admin Only */}
 
                     </div>
 

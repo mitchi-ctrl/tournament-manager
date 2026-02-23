@@ -15,9 +15,10 @@ const mapProfile = (p) => {
         username: p.username || (p.email ? p.email.split('@')[0] : 'Unknown'),
         role: p.role || 'viewer',
         shareCode: p.share_code || '',
+        unlockedTournaments: p.unlocked_tournaments || [], // Add this
         following: p.following || [],
         blocked: p.blocked || [],
-        email: p.email // might be coming from Auth User
+        email: p.email
     };
 };
 
@@ -122,6 +123,7 @@ export const storage = {
         const payload = {
             role: user.role,
             share_code: user.shareCode,
+            unlocked_tournaments: user.unlockedTournaments || [], // Sync this
             following: user.following
         };
         const { error } = await supabase.from('profiles').update(payload).eq('id', user.id);
@@ -135,6 +137,18 @@ export const storage = {
     regenerateShareCode: async (userId) => {
         const newCode = Math.random().toString(36).substring(2, 8).toUpperCase();
         const { error } = await supabase.from('profiles').update({ share_code: newCode }).eq('id', userId);
+        if (error) throw error;
+        return newCode;
+    },
+    // NEW: Tournament Share Code Handling
+    unlockTournament: async (code) => {
+        const { data, error } = await supabase.rpc('unlock_tournament_by_code', { code_input: code });
+        if (error) throw error;
+        return data; // { success: boolean, tournament_id?: string, message?: string }
+    },
+    regenerateTournamentShareCode: async (tournamentId) => {
+        const newCode = Math.random().toString(36).substring(2, 10).toUpperCase();
+        const { error } = await supabase.from('tournaments').update({ share_code: newCode }).eq('id', tournamentId);
         if (error) throw error;
         return newCode;
     },
@@ -189,6 +203,7 @@ export const storage = {
             lockMembers: t.rules?.lockMembers ?? false, // Unpack lockMembers
             channels: t.rules?.channels || [], // Unpack channels
             ownerId: t.owner_id, // Map snake_case to camelCase
+            shareCode: t.share_code, // Add this
             rounds: (t.schedule || []).reduce((acc, day) => acc + (parseInt(day.rounds) || 0), 0)
         }));
     },
@@ -216,7 +231,7 @@ export const storage = {
         };
 
         if (tourney.id) {
-            // Update: Do NOT send owner_id to avoid RLS 406 for admins
+            // Update
             const { data, error } = await supabase
                 .from('tournaments')
                 .update(payload)
@@ -235,13 +250,15 @@ export const storage = {
                 lockMembers: data.rules?.lockMembers,
                 channels: data.rules?.channels,
                 ownerId: data.owner_id,
+                shareCode: data.share_code,
                 rounds: (data.schedule || []).reduce((acc, day) => acc + (parseInt(day.rounds) || 0), 0)
             };
         } else {
-            // Insert: Add owner_id for new records
+            // Insert: Add owner_id and generate initial share_code
+            const share_code = Math.random().toString(36).substring(2, 10).toUpperCase();
             const { data, error } = await supabase
                 .from('tournaments')
-                .insert({ ...payload, owner_id: user.id })
+                .insert({ ...payload, owner_id: user.id, share_code })
                 .select()
                 .single();
             if (error) throw error;

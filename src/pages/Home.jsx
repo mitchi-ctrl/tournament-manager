@@ -63,18 +63,12 @@ const Home = () => {
                     }
                 }
 
-                // Multi-Tenant Logic: Filter tournaments
+                // Multi-Tenant Logic: Filter tournaments based on ownership, superadmin status, or unlock code
                 const accessibleList = list.filter(t => {
-                    if (!t.ownerId) return true;
-
-                    // Check if owner blocked the current user
-                    const owner = users.find(u => u.id === t.ownerId);
-                    const isBlockedByOwner = (owner?.blocked || []).includes(currentUser.id);
-                    if (isBlockedByOwner) return false;
-
                     const isOwner = t.ownerId === currentUser.id;
-                    const isFollowing = (freshUser?.following || currentUser.following || []).includes(t.ownerId);
-                    return isOwner || isFollowing;
+                    const isSuperAdmin = currentUser.role === 'superadmin';
+                    const isUnlocked = (freshUser?.unlockedTournaments || currentUser.unlockedTournaments || []).includes(t.id);
+                    return isOwner || isSuperAdmin || isUnlocked;
                 });
 
                 // Sort: Priority (Active/Upcoming) > Date Desc
@@ -115,33 +109,39 @@ const Home = () => {
         setFilteredTournaments(filtered);
     }, [searchTerm, tournaments, allUsers]);
 
-    const handleFollow = async (e) => {
+    const handleUnlock = async (e) => {
         e.preventDefault();
         const code = shareCodeInput.trim().toUpperCase();
         if (!code) return;
 
-        const organizer = await storage.getUserByShareCode(code);
-        if (!organizer) {
-            alert('無効なアクセスコードです');
-            return;
-        }
+        try {
+            const result = await storage.unlockTournament(code);
+            if (result.success) {
+                setShareCodeInput('');
+                alert('大会が解放されました！');
 
-        if (organizer.id === currentUser.id) {
-            alert("自分自身をフォローすることはできません。");
-            return;
-        }
+                // Fetch fresh data
+                const [list, users] = await Promise.all([
+                    storage.getTournaments(),
+                    storage.getUsers()
+                ]);
 
-        const currentFollowing = currentUser.following || [];
-        if (currentFollowing.includes(organizer.id)) {
-            alert(`${organizer.username} は既にフォローしています。`);
-            return;
-        }
+                const freshUser = users.find(u => u.id === currentUser.id);
+                if (freshUser) {
+                    const updated = { ...currentUser, ...freshUser };
+                    setCurrentUser(updated);
+                    sessionStorage.setItem('tm_session', JSON.stringify(updated));
+                }
 
-        const updatedUser = { ...currentUser, following: [...currentFollowing, organizer.id] };
-        await storage.updateUser(updatedUser);
-        setCurrentUser(updatedUser);
-        setShareCodeInput('');
-        alert(`${organizer.username} の大会が表示されるようになりました！`);
+                setAllUsers(users);
+                // The accessibleList logic in useEffect will handle visibility of the new tournament 
+                // when it triggers due to currentUser update.
+            } else {
+                alert(result.message || '無効なアクセスコードです');
+            }
+        } catch (e) {
+            alert('エラーが発生しました: ' + e.message);
+        }
     };
 
     const isNew = (t) => {
@@ -251,9 +251,8 @@ const Home = () => {
                                     />
                                 </div>
 
-                                {/* Compact Private Access */}
                                 <div className="access-code-box" style={{ display: 'flex', alignItems: 'center', backgroundColor: '#1e293b', padding: '0.4rem', borderRadius: '8px', border: '1px solid #334155' }}>
-                                    <form onSubmit={handleFollow} style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
+                                    <form onSubmit={handleUnlock} style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
                                         <div style={{ position: 'relative', height: '100%', flex: 1 }}>
                                             <Key size={14} className="key-icon" style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#64748b' }} />
                                             <input
@@ -294,71 +293,31 @@ const Home = () => {
                                 </div>
                             </div>
 
-                            {/* Admin Controls: Share Code & Create Button (Single Row) */}
+                            {/* Title Bar Action: Create Button */}
                             {(currentUser.role === 'admin' || currentUser.role === 'superadmin') && (
-                                <div style={{ marginBottom: '1rem' }}>
-                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 0.5rem' }}>
-
-                                        {/* Left: Share Code */}
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                            <span style={{ color: '#64748b', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                                My Share Code: <span style={{ color: '#e2e8f0', fontFamily: 'monospace', fontSize: '1rem', fontWeight: 'bold' }}>{currentUser.shareCode}</span>
-                                            </span>
-                                            <button
-                                                onClick={async () => {
-                                                    if (confirm('アクセスコードを再生成しますか？古いコードは無効になります。')) {
-                                                        try {
-                                                            const newCode = await storage.regenerateShareCode(currentUser.id);
-                                                            if (newCode) setCurrentUser(prev => ({ ...prev, shareCode: newCode }));
-                                                        } catch (e) {
-                                                            alert('エラーが発生しました: ' + e.message);
-                                                        }
-                                                    }
-                                                }}
-                                                title="更新"
-                                                style={{
-                                                    background: '#334155',
-                                                    border: 'none',
-                                                    color: '#e2e8f0',
-                                                    cursor: 'pointer',
-                                                    padding: '2px 8px',
-                                                    borderRadius: '4px',
-                                                    fontSize: '0.7rem',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: '4px'
-                                                }}
-                                            >
-                                                <RefreshCw size={10} /> 更新
-                                            </button>
-                                        </div>
-
-                                        {/* Right: New Tournament Plus Button */}
-                                        <Link to="/create">
-                                            <button style={{
-                                                background: 'transparent',
-                                                color: '#f59e0b', /* Amber 500 */
-                                                border: 'none',
-                                                padding: '0',
-                                                cursor: 'pointer',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                transition: 'color 0.2s'
-                                            }}
-                                                onMouseEnter={(e) => e.target.style.color = '#fbbf24'} /* Amber 400 */
-                                                onMouseLeave={(e) => e.target.style.color = '#f59e0b'}
-                                                title="新規大会作成"
-                                            >
-                                                <Plus size={28} strokeWidth={3} />
-                                            </button>
-                                        </Link>
-                                    </div>
-
-                                    {/* Divider - Below Everything */}
-                                    <div style={{ width: '100%', height: '1px', background: 'linear-gradient(90deg, #334155 0%, transparent 100%)', marginTop: '0.5rem', marginBottom: '0.5rem' }}></div>
+                                <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end', padding: '0 0.5rem' }}>
+                                    <Link to="/create">
+                                        <button style={{
+                                            background: 'transparent',
+                                            color: '#f59e0b',
+                                            border: 'none',
+                                            padding: '0',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            transition: 'color 0.2s'
+                                        }}
+                                            onMouseEnter={(e) => e.target.style.color = '#fbbf24'}
+                                            onMouseLeave={(e) => e.target.style.color = '#f59e0b'}
+                                            title="新規大会作成"
+                                        >
+                                            <Plus size={28} strokeWidth={3} />
+                                        </button>
+                                    </Link>
                                 </div>
                             )}
+                            <div style={{ width: '100%', height: '1px', background: 'linear-gradient(90deg, #334155 0%, transparent 100%)', marginBottom: '1.5rem' }}></div>
 
                             {/* Tournament Grid */}
                             {filteredTournaments.length === 0 ? (
