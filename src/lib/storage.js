@@ -198,6 +198,7 @@ export const storage = {
             description: t.rules?.description || '',
             tags: t.rules?.tags || [],
             maxTeams: t.rules?.maxTeams || 20,
+            maxMembers: t.rules?.maxMembers || 5, // Unpack maxMembers
             defaultIcon: t.rules?.defaultIcon || null, // Unpack defaultIcon
             tagRequired: t.rules?.tagRequired ?? true, // Unpack tagRequired
             lockMembers: t.rules?.lockMembers ?? false, // Unpack lockMembers
@@ -217,6 +218,7 @@ export const storage = {
             description: tourney.description,
             tags: tourney.tags,
             maxTeams: tourney.maxTeams,
+            maxMembers: tourney.maxMembers || 5, // Pack maxMembers
             defaultIcon: tourney.defaultIcon, // Pack defaultIcon
             tagRequired: tourney.tagRequired ?? true, // Pack tagRequired
             lockMembers: tourney.lockMembers ?? false, // Pack lockMembers
@@ -245,6 +247,7 @@ export const storage = {
                 description: data.rules?.description,
                 tags: data.rules?.tags,
                 maxTeams: data.rules?.maxTeams,
+                maxMembers: data.rules?.maxMembers || 5,
                 defaultIcon: data.rules?.defaultIcon,
                 tagRequired: data.rules?.tagRequired,
                 lockMembers: data.rules?.lockMembers,
@@ -268,6 +271,7 @@ export const storage = {
                 description: data.rules?.description,
                 tags: data.rules?.tags,
                 maxTeams: data.rules?.maxTeams,
+                maxMembers: data.rules?.maxMembers || 5, // Unpack maxMembers
                 defaultIcon: data.rules?.defaultIcon,
                 tagRequired: data.rules?.tagRequired,
                 lockMembers: data.rules?.lockMembers,

@@ -11,6 +11,7 @@ const TournamentCreate = () => {
     const [schedule, setSchedule] = useState([]);
     const [description, setDescription] = useState('');
     const [tagRequired, setTagRequired] = useState(true);
+    const [maxMembers, setMaxMembers] = useState(5);
     const [lockMembers, setLockMembers] = useState(false);
     const [scoringRules, setScoringRules] = useState(storage.DEFAULT_RULES);
     const [showAdvancedScoring, setShowAdvancedScoring] = useState(false);
@@ -100,6 +101,7 @@ const TournamentCreate = () => {
             lockMembers: lockMembers, // Save member lock setting
             ownerId: storage.getCurrentUser().id, // Owner
             tags: tags, // Save tags
+            maxMembers: maxMembers,
             description: description, // Save description / rules
             createdAt: new Date().toISOString()
         };
@@ -177,6 +179,16 @@ const TournamentCreate = () => {
                                     <span className="toggle-slider"></span>
                                 </label>
                             </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: '#0b0b0e', borderRadius: '6px', border: '1px solid #4b5563' }}>
+                                <span className="toggle-label-text" style={{ fontSize: '0.8rem' }}>1チームの上限人数</span>
+                                <input
+                                    type="number"
+                                    min="1"
+                                    value={maxMembers}
+                                    onChange={(e) => setMaxMembers(parseInt(e.target.value) || 5)}
+                                    style={{ width: '50px', padding: '4px', borderRadius: '4px', border: '1px solid #4b5563', backgroundColor: '#111827', color: '#eab308', textAlign: 'center', fontWeight: 'bold' }}
+                                />
+                            </div>
                         </div>
                     </div>
                     <p style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '-0.5rem', gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '4px' }}>
@@ -188,9 +200,20 @@ const TournamentCreate = () => {
                     <label style={{ display: 'block', marginBottom: '0.8rem', fontWeight: 'bold', fontSize: '0.9rem', color: '#9ca3af', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Calendar size={18} /> スケジュール
                     </label>
+                    <style>{`
+                        @media (max-width: 480px) {
+                            .schedule-item {
+                                flex-direction: column !important;
+                                align-items: stretch !important;
+                            }
+                            .schedule-item > div {
+                                width: 100% !important;
+                            }
+                        }
+                    `}</style>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         {schedule.map((day, idx) => (
-                            <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', backgroundColor: '#111827', padding: '0.75rem', borderRadius: '8px', border: '1px solid #374151' }}>
+                            <div key={idx} className="schedule-item" style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', backgroundColor: '#111827', padding: '0.75rem', borderRadius: '8px', border: '1px solid #374151' }}>
                                 <div style={{ flex: 1 }}>
                                     <label style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '4px', display: 'block' }}>Day Name</label>
                                     <input

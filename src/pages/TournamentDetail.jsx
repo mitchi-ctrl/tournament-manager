@@ -101,6 +101,7 @@ const TournamentSettingsModal = ({ tournament, onClose, onSave, canEdit }) => {
     const [tagRequired, setTagRequired] = useState(tournament.tagRequired ?? true);
     const [lockMembers, setLockMembers] = useState(tournament.lockMembers ?? false);
     const [maxTeams, setMaxTeams] = useState(tournament.maxTeams || 20);
+    const [maxMembers, setMaxMembers] = useState(tournament.maxMembers || 5);
 
     const handleRankPointChange = (idx, val) => {
         const newPoints = [...rankPoints];
@@ -113,6 +114,7 @@ const TournamentSettingsModal = ({ tournament, onClose, onSave, canEdit }) => {
             ...tournament,
             description,
             maxTeams,
+            maxMembers,
             tagRequired,
             lockMembers,
             scoringRules: {
@@ -158,16 +160,17 @@ const TournamentSettingsModal = ({ tournament, onClose, onSave, canEdit }) => {
                         <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', borderBottom: '1px solid #374151', paddingBottom: '0.25rem' }}>登録・参加設定</h3>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '1rem' }}>
                             <div>
-                                <label style={{ display: 'block', fontSize: '0.8rem', color: '#9ca3af', marginBottom: '4px' }}>最大チーム数</label>
+                                <label style={{ display: 'block', fontSize: '0.8rem', color: '#9ca3af', marginBottom: '4px' }}>最大メンバー数 / チーム</label>
                                 {canEdit ? (
                                     <input
                                         type="number"
-                                        value={maxTeams}
-                                        onChange={(e) => setMaxTeams(parseInt(e.target.value) || 2)}
+                                        min="1"
+                                        value={maxMembers}
+                                        onChange={(e) => setMaxMembers(parseInt(e.target.value) || 1)}
                                         style={{ width: '100%', padding: '0.5rem', backgroundColor: '#111827', border: '1px solid #4b5563', color: 'white', borderRadius: '4px' }}
                                     />
                                 ) : (
-                                    <div style={{ fontWeight: 'bold' }}>{maxTeams} チーム</div>
+                                    <div style={{ fontWeight: 'bold' }}>{maxMembers} 人</div>
                                 )}
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', gridColumn: 'span 1' }}>
@@ -251,8 +254,8 @@ const TournamentSettingsModal = ({ tournament, onClose, onSave, canEdit }) => {
                         </button>
                     )}
                 </div>
-            </div>
-        </div>
+            </div >
+        </div >
     );
 };
 
@@ -741,6 +744,7 @@ const EntryTab = ({ tournament, teams, onRegister, onUnregister, onUpdate, onTou
     const isAdmin = currentUser.id === tournament.ownerId || currentUser.role === 'superadmin';
     const isLocked = !!tournament.lockMembers;
     const tagRequired = tournament.tagRequired ?? true;
+    const maxMembersLimit = tournament.maxMembers || 5;
 
     const resetForm = () => {
         setTeamName('');
@@ -772,6 +776,10 @@ const EntryTab = ({ tournament, teams, onRegister, onUnregister, onUpdate, onTou
     };
 
     const handleAddMemberSlot = () => {
+        if (members.length >= maxMembersLimit) {
+            alert(`1チームの最大人数（${maxMembersLimit}名）に達しています。`);
+            return;
+        }
         setMembers([...members, { name: '', tag: '', checkTag: true }]);
     };
 
@@ -829,6 +837,11 @@ const EntryTab = ({ tournament, teams, onRegister, onUnregister, onUpdate, onTou
                 alert(`エラー: プレイヤー "${m.name}" はチームタグ "${teamTag}" を含んでいません。\nタグを含めるか、"制限なし" を選択してください。`);
                 return;
             }
+        }
+
+        if (validMembers.length > maxMembersLimit) {
+            alert(`1チームの最大人数（${maxMembersLimit}名）を超えています。`);
+            return;
         }
 
         const playerIds = [];
@@ -953,15 +966,24 @@ const EntryTab = ({ tournament, teams, onRegister, onUnregister, onUpdate, onTou
                             <div style={{ marginTop: '1rem' }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
                                     <label style={{ margin: 0, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                        メンバー {isLocked && <span style={{ fontSize: '0.7rem', color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '2px 6px', borderRadius: '4px' }}>ロック中</span>}
+                                        メンバー ({members.length}/{maxMembersLimit}) {isLocked && <span style={{ fontSize: '0.7rem', color: '#ef4444', backgroundColor: 'rgba(239, 68, 68, 0.1)', padding: '2px 6px', borderRadius: '4px' }}>ロック中</span>}
                                     </label>
                                     {!isLocked && (
                                         <button
                                             type="button"
                                             onClick={handleAddMemberSlot}
-                                            style={{ fontSize: '0.8rem', color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontWeight: 'bold' }}
+                                            disabled={members.length >= maxMembersLimit}
+                                            style={{
+                                                fontSize: '0.8rem',
+                                                color: members.length >= maxMembersLimit ? '#6b7280' : '#3b82f6',
+                                                background: 'none',
+                                                border: 'none',
+                                                cursor: members.length >= maxMembersLimit ? 'not-allowed' : 'pointer',
+                                                padding: 0,
+                                                fontWeight: 'bold'
+                                            }}
                                         >
-                                            + 追加
+                                            {members.length >= maxMembersLimit ? '上限到達' : '+ 追加'}
                                         </button>
                                     )}
                                 </div>
