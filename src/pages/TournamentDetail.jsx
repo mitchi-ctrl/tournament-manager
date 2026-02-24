@@ -170,25 +170,31 @@ const TournamentSettingsModal = ({ tournament, onClose, onSave, canEdit }) => {
                                     <div style={{ fontWeight: 'bold' }}>{maxTeams} チーム</div>
                                 )}
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '8px' }}>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: canEdit ? 'pointer' : 'default', fontSize: '0.9rem' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={tagRequired}
-                                        disabled={!canEdit}
-                                        onChange={(e) => setTagRequired(e.target.checked)}
-                                    />
-                                    チームタグ必須
-                                </label>
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: canEdit ? 'pointer' : 'default', fontSize: '0.9rem' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={lockMembers}
-                                        disabled={!canEdit}
-                                        onChange={(e) => setLockMembers(e.target.checked)}
-                                    />
-                                    メンバー登録ロック
-                                </label>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', gridColumn: 'span 1' }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: '#111827', borderRadius: '6px', border: '1px solid #374151' }}>
+                                    <span className="toggle-label-text" style={{ fontSize: '0.85rem' }}>チームタグ必須</span>
+                                    <label className="tactical-toggle">
+                                        <input
+                                            type="checkbox"
+                                            checked={tagRequired}
+                                            disabled={!canEdit}
+                                            onChange={(e) => setTagRequired(e.target.checked)}
+                                        />
+                                        <span className="toggle-slider"></span>
+                                    </label>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: '#111827', borderRadius: '6px', border: '1px solid #374151' }}>
+                                    <span className="toggle-label-text" style={{ fontSize: '0.85rem' }}>メンバー登録ロック</span>
+                                    <label className="tactical-toggle">
+                                        <input
+                                            type="checkbox"
+                                            checked={lockMembers}
+                                            disabled={!canEdit}
+                                            onChange={(e) => setLockMembers(e.target.checked)}
+                                        />
+                                        <span className="toggle-slider"></span>
+                                    </label>
+                                </div>
                             </div>
                         </div>
                     </section>
@@ -1331,6 +1337,7 @@ const ResultInput = ({ tournament, teams, initialResults, onSave }) => {
     const [selectedRound, setSelectedRound] = useState(1);
     const [teamRank, setTeamRank] = useState({});
     const [teamPenalty, setTeamPenalty] = useState({});
+    const [teamBonus, setTeamBonus] = useState({});
     const [memberKills, setMemberKills] = useState({});
     const [allPlayers, setAllPlayers] = useState([]);
     const [rules, setRules] = useState(storage.DEFAULT_RULES);
@@ -1360,6 +1367,7 @@ const ResultInput = ({ tournament, teams, initialResults, onSave }) => {
 
         const initRank = {};
         const initPenalty = {};
+        const initBonus = {};
         const initMemberKills = {};
 
         teams.forEach(team => {
@@ -1367,6 +1375,7 @@ const ResultInput = ({ tournament, teams, initialResults, onSave }) => {
             if (currentRoundData[team.id]) {
                 initRank[team.id] = currentRoundData[team.id].rank;
                 initPenalty[team.id] = currentRoundData[team.id].penalty || '';
+                initBonus[team.id] = currentRoundData[team.id].bonus || '';
                 // Load member kills if exist
                 if (currentRoundData[team.id].memberKills) {
                     initMemberKills[team.id] = currentRoundData[team.id].memberKills;
@@ -1380,6 +1389,7 @@ const ResultInput = ({ tournament, teams, initialResults, onSave }) => {
             } else {
                 initRank[team.id] = '';
                 initPenalty[team.id] = ''; // Default to empty
+                initBonus[team.id] = '';
                 initMemberKills[team.id] = {};
                 team.memberIds.forEach(mid => {
                     initMemberKills[team.id][mid] = ''; // Default to empty
@@ -1388,6 +1398,7 @@ const ResultInput = ({ tournament, teams, initialResults, onSave }) => {
         });
         setTeamRank(initRank);
         setTeamPenalty(initPenalty);
+        setTeamBonus(initBonus);
         setMemberKills(initMemberKills);
     }, [selectedRound, teams, initialResults]);
 
@@ -1427,6 +1438,7 @@ const ResultInput = ({ tournament, teams, initialResults, onSave }) => {
             Object.values(teamMemberKills).forEach(k => totalTeamKills += (Number(k) || 0));
 
             const penalty = parseInt(teamPenalty[team.id]) || 0;
+            const bonus = parseInt(teamBonus[team.id]) || 0;
 
             // Calculate Points
             // rank points (rank is 1-indexed, array is 0-indexed)
@@ -1435,13 +1447,14 @@ const ResultInput = ({ tournament, teams, initialResults, onSave }) => {
                 : 0;
 
             const killPoints = totalTeamKills * (rules.killPoint ?? 1);
-            const totalPoints = placementPoints + killPoints - penalty;
+            const totalPoints = placementPoints + killPoints - penalty + bonus;
 
             // Save only this team's result
             await storage.saveResult(tournament.id, roundKey, team.id, {
                 rank: rank,
                 kills: totalTeamKills,
                 penalty: penalty,
+                bonus: bonus,
                 memberKills: teamMemberKills,
                 totalPoints: totalPoints
             });
@@ -1569,6 +1582,16 @@ const ResultInput = ({ tournament, teams, initialResults, onSave }) => {
                                 <span style={{ fontSize: '0.8rem', color: '#9ca3af' }}>{team.tag || '-'}</span>
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                                    <label style={{ fontSize: '0.65rem', color: '#3b82f6', fontWeight: 'bold', textTransform: 'uppercase' }}>ボーナス</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={teamBonus[team.id] !== undefined ? teamBonus[team.id] : ''}
+                                        onChange={(e) => setTeamBonus(prev => ({ ...prev, [team.id]: e.target.value }))}
+                                        style={{ width: '40px', padding: '0.3rem', textAlign: 'center', borderRadius: '4px', border: '1px solid #3b82f6', color: '#3b82f6', backgroundColor: '#111827', fontWeight: 'bold' }}
+                                    />
+                                </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                                     <label style={{ fontSize: '0.65rem', color: '#ef4444', fontWeight: 'bold', textTransform: 'uppercase' }}>ペナルティ</label>
                                     <input
@@ -1939,7 +1962,7 @@ const TournamentDetail = () => {
                         ? (tournament.scoringRules.rankPoints[rank - 1] || 0)
                         : 0;
                     const kp = tournament.scoringRules?.killPoint ?? 1;
-                    const roundTotal = placementPoints + (res.kills * kp) - (res.penalty || 0);
+                    const roundTotal = placementPoints + (res.kills * kp) - (res.penalty || 0) + (res.bonus || 0);
 
                     totalPoints += roundTotal;
                     totalKills += (res.kills || 0);

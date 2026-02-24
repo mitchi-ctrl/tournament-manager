@@ -118,106 +118,112 @@ const TournamentCreate = () => {
 
             <form onSubmit={handleCreate} className="card">
                 <div style={{ marginBottom: '1.5rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Tournament Name</label>
+                    <label style={{ display: 'block', marginBottom: '0.8rem', fontWeight: 'bold', fontSize: '0.9rem', color: '#9ca3af', textTransform: 'uppercase' }}>大会名</label>
                     <input
                         type="text"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. Saturday Night Showdown"
-                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db' }}
+                        placeholder="例: 第1回 チキチキ大会"
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #4b5563', backgroundColor: '#0b0b0e', color: 'white' }}
                     />
                 </div>
 
                 <div style={{ marginBottom: '1.5rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Initial Status</label>
+                    <label style={{ display: 'block', marginBottom: '0.8rem', fontWeight: 'bold', fontSize: '0.9rem', color: '#9ca3af', textTransform: 'uppercase' }}>初期ステータス</label>
                     <select
                         value={status}
                         onChange={(e) => setStatus(e.target.value)}
-                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db' }}
+                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #4b5563', backgroundColor: '#0b0b0e', color: 'white' }}
                     >
-                        <option value="upcoming">Upcoming</option>
-                        <option value="active">Active</option>
-                        <option value="finished">Finished (Ended)</option>
+                        <option value="upcoming">Upcoming (準備中)</option>
+                        <option value="active">Active (開催中)</option>
+                        <option value="finished">Finished (終了)</option>
                     </select>
                 </div>
 
-                <div style={{ marginBottom: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                <div style={{ marginBottom: '1.5rem', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.5rem' }}>
                     <div>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Max Teams</label>
+                        <label style={{ display: 'block', marginBottom: '0.8rem', fontWeight: 'bold', fontSize: '0.9rem', color: '#9ca3af', textTransform: 'uppercase' }}>最大チーム数</label>
                         <input
                             type="number"
                             min="2"
                             value={maxTeams}
                             onChange={(e) => setMaxTeams(parseInt(e.target.value) || 20)}
-                            style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db' }}
+                            style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #4b5563', backgroundColor: '#0b0b0e', color: 'white' }}
                         />
                     </div>
                     <div>
-                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold' }}>Settings</label>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={tagRequired}
-                                    onChange={(e) => setTagRequired(e.target.checked)}
-                                />
-                                チームタグ必須
-                            </label>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontSize: '0.9rem' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={lockMembers}
-                                    onChange={(e) => setLockMembers(e.target.checked)}
-                                />
-                                メンバー追加ロック
-                            </label>
+                        <label style={{ display: 'block', marginBottom: '0.8rem', fontWeight: 'bold', fontSize: '0.9rem', color: '#9ca3af', textTransform: 'uppercase' }}>各種設定</label>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: '#0b0b0e', borderRadius: '6px', border: '1px solid #4b5563' }}>
+                                <span className="toggle-label-text" style={{ fontSize: '0.8rem' }}>チームタグ必須</span>
+                                <label className="tactical-toggle">
+                                    <input
+                                        type="checkbox"
+                                        checked={tagRequired}
+                                        onChange={(e) => setTagRequired(e.target.checked)}
+                                    />
+                                    <span className="toggle-slider"></span>
+                                </label>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.6rem 0.8rem', backgroundColor: '#0b0b0e', borderRadius: '6px', border: '1px solid #4b5563' }}>
+                                <span className="toggle-label-text" style={{ fontSize: '0.8rem' }}>メンバー追加ロック</span>
+                                <label className="tactical-toggle">
+                                    <input
+                                        type="checkbox"
+                                        checked={lockMembers}
+                                        onChange={(e) => setLockMembers(e.target.checked)}
+                                    />
+                                    <span className="toggle-slider"></span>
+                                </label>
+                            </div>
                         </div>
                     </div>
-                    <p style={{ colSpan: 2, fontSize: '0.8rem', color: '#6b7280', marginTop: '4px', gridColumn: 'span 2' }}>
-                        Registration will automatically close when the limit is reached.
+                    <p style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '-0.5rem', gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <BookOpen size={14} /> 上限に達すると自動的に参加登録が締め切られます。
                     </p>
                 </div>
 
                 <div style={{ marginBottom: '1.5rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Calendar size={18} /> Schedule
+                    <label style={{ display: 'block', marginBottom: '0.8rem', fontWeight: 'bold', fontSize: '0.9rem', color: '#9ca3af', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Calendar size={18} /> スケジュール
                     </label>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                         {schedule.map((day, idx) => (
-                            <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', backgroundColor: '#f9fafb', padding: '0.75rem', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+                            <div key={idx} style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end', backgroundColor: '#111827', padding: '0.75rem', borderRadius: '8px', border: '1px solid #374151' }}>
                                 <div style={{ flex: 1 }}>
-                                    <label style={{ fontSize: '0.8rem', color: '#6b7280' }}>Day Name</label>
+                                    <label style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '4px', display: 'block' }}>Day Name</label>
                                     <input
                                         type="text"
                                         value={day.name}
                                         onChange={(e) => handleDayChange(idx, 'name', e.target.value)}
-                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #d1d5db' }}
+                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #4b5563', backgroundColor: '#0b0b0e', color: 'white' }}
                                     />
                                 </div>
                                 <div style={{ flex: 1 }}>
-                                    <label style={{ fontSize: '0.8rem', color: '#6b7280' }}>Date</label>
+                                    <label style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '4px', display: 'block' }}>Date</label>
                                     <input
                                         type="date"
                                         value={day.date}
                                         onChange={(e) => handleDayChange(idx, 'date', e.target.value)}
-                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #d1d5db' }}
+                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #4b5563', backgroundColor: '#0b0b0e', color: 'white' }}
                                     />
                                 </div>
                                 <div style={{ width: '80px' }}>
-                                    <label style={{ fontSize: '0.8rem', color: '#6b7280' }}>Rounds</label>
+                                    <label style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '4px', display: 'block' }}>Rounds</label>
                                     <input
                                         type="number"
                                         min="1"
                                         value={day.rounds}
                                         onChange={(e) => handleDayChange(idx, 'rounds', parseInt(e.target.value) || 1)}
-                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #d1d5db' }}
+                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #4b5563', backgroundColor: '#0b0b0e', color: 'white', textAlign: 'center' }}
                                     />
                                 </div>
                                 {schedule.length > 1 && (
                                     <button
                                         type="button"
                                         onClick={() => handleRemoveDay(idx)}
-                                        style={{ padding: '0.6rem', color: '#ef4444', backgroundColor: 'transparent', border: '1px solid #ef4444', borderRadius: '4px', cursor: 'pointer' }}
+                                        style={{ padding: '0.6rem', color: '#ef4444', backgroundColor: 'transparent', border: '1px solid #ef4444', borderRadius: '4px', cursor: 'pointer', marginBottom: '2px' }}
                                     >
                                         <Trash2 size={16} />
                                     </button>
@@ -228,49 +234,49 @@ const TournamentCreate = () => {
                     <button
                         type="button"
                         onClick={handleAddDay}
-                        style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '4px', color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}
+                        style={{ marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '4px', color: '#3b82f6', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 'bold', clipPath: 'none' }}
                     >
-                        <Plus size={16} /> Add Day
+                        <Plus size={16} /> 日程を追加
                     </button>
                 </div>
 
-                <div style={{ marginBottom: '1.5rem', border: '1px solid #e5e7eb', borderRadius: '8px', padding: '1rem' }}>
+                <div style={{ marginBottom: '1.5rem', border: '1px solid #374151', borderRadius: '8px', padding: '1rem', backgroundColor: '#111827' }}>
                     <div
                         style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }}
                         onClick={() => setShowAdvancedScoring(!showAdvancedScoring)}
                     >
-                        <label style={{ margin: 0, fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
-                            <Trophy size={18} /> Scoring Rules
+                        <label style={{ margin: 0, fontWeight: 'bold', fontSize: '0.9rem', color: '#9ca3af', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+                            <Trophy size={18} /> スコアリング設定
                         </label>
-                        <span style={{ fontSize: '0.8rem', color: '#3b82f6' }}>
-                            {showAdvancedScoring ? 'Hide' : 'Customize'}
+                        <span style={{ fontSize: '0.8rem', color: '#3b82f6', fontWeight: 'bold' }}>
+                            {showAdvancedScoring ? '閉じる' : 'カスタマイズ'}
                         </span>
                     </div>
 
                     {showAdvancedScoring && (
-                        <div style={{ marginTop: '1rem', borderTop: '1px solid #f3f4f6', paddingTop: '1rem' }}>
-                            <div style={{ marginBottom: '1rem' }}>
-                                <label style={{ fontSize: '0.9rem', color: '#374151' }}>Kill Points</label>
+                        <div style={{ marginTop: '1rem', borderTop: '1px solid #374151', paddingTop: '1rem' }}>
+                            <div style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center' }}>
+                                <label style={{ fontSize: '0.9rem', color: '#d1d5db' }}>Kill Points:</label>
                                 <input
                                     type="number"
                                     value={scoringRules.killPoint}
                                     onChange={(e) => setScoringRules({ ...scoringRules, killPoint: parseInt(e.target.value) || 0 })}
-                                    style={{ marginLeft: '1rem', padding: '0.4rem', width: '60px', borderRadius: '4px', border: '1px solid #d1d5db' }}
+                                    style={{ marginLeft: '1rem', padding: '0.4rem', width: '60px', borderRadius: '4px', border: '1px solid #4b5563', backgroundColor: '#0b0b0e', color: 'white', textAlign: 'center' }}
                                 />
-                                <span style={{ fontSize: '0.8rem', color: '#6b7280', marginLeft: '4px' }}>pts</span>
+                                <span style={{ fontSize: '0.8rem', color: '#6b7280', marginLeft: '8px' }}>pts / Kill</span>
                             </div>
 
                             <div>
-                                <label style={{ fontSize: '0.9rem', color: '#374151', marginBottom: '0.5rem', display: 'block' }}>Rank Points (1st - 10th+)</label>
+                                <label style={{ fontSize: '0.85rem', color: '#d1d5db', marginBottom: '0.8rem', display: 'block' }}>順位ポイント (1位〜10位+)</label>
                                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '8px' }}>
                                     {scoringRules.rankPoints.slice(0, 10).map((pts, idx) => (
-                                        <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
-                                            <span style={{ fontSize: '0.75rem', color: '#9ca3af' }}>#{idx + 1}</span>
+                                        <div key={idx} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+                                            <span style={{ fontSize: '0.7rem', color: '#6b7280' }}>#{idx + 1}</span>
                                             <input
                                                 type="number"
                                                 value={pts}
                                                 onChange={(e) => handleRankPointChange(idx, e.target.value)}
-                                                style={{ width: '100%', padding: '0.3rem', textAlign: 'center', borderRadius: '4px', border: '1px solid #d1d5db', fontSize: '0.9rem' }}
+                                                style={{ width: '100%', padding: '0.4rem', textAlign: 'center', borderRadius: '4px', border: '1px solid #4b5563', backgroundColor: '#0b0b0e', color: 'white', fontSize: '0.85rem' }}
                                             />
                                         </div>
                                     ))}
@@ -286,30 +292,30 @@ const TournamentCreate = () => {
                 </div>
 
                 <div style={{ marginBottom: '1.5rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <BookOpen size={18} /> Tournament Rules (Description)
+                    <label style={{ display: 'block', marginBottom: '0.8rem', fontWeight: 'bold', fontSize: '0.9rem', color: '#9ca3af', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <BookOpen size={18} /> 大会説明・ルール
                     </label>
                     <textarea
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        placeholder="Enter detailed tournament rules here..."
+                        placeholder="詳細なルールを入力してください..."
                         rows={5}
-                        style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db', resize: 'vertical' }}
+                        style={{ width: '100%', padding: '0.8rem', borderRadius: '8px', border: '1px solid #4b5563', backgroundColor: '#0b0b0e', color: 'white', resize: 'vertical', fontSize: '0.9rem' }}
                     />
                 </div>
 
-                <div style={{ marginBottom: '1.5rem' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Trash2 size={18} color="#ef4444" /> Prohibited Actions / Tags
+                <div style={{ marginBottom: '2rem' }}>
+                    <label style={{ display: 'block', marginBottom: '0.8rem', fontWeight: 'bold', fontSize: '0.9rem', color: '#9ca3af', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Trash2 size={18} color="#ef4444" /> 禁止事項・タグ
                     </label>
-                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                    <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.8rem' }}>
                         <input
                             type="text"
                             value={tagInput}
                             onChange={(e) => setTagInput(e.target.value)}
                             onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), handleAddTag())}
-                            placeholder="e.g. No Grenades, Sniper Only"
-                            style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid #d1d5db' }}
+                            placeholder="例: グレネード禁止, スナイパー限定"
+                            style={{ flex: 1, padding: '0.75rem', borderRadius: '8px', border: '1px solid #4b5563', backgroundColor: '#0b0b0e', color: 'white' }}
                         />
                         <button
                             type="button"
