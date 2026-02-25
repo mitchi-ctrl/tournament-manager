@@ -3,7 +3,8 @@ import { supabase } from './supabase';
 
 const DEFAULT_RULES = {
     killPoint: 1,
-    rankPoints: [15, 12, 10, 8, 6, 4, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] // Rank 1 to 20
+    rankPoints: [15, 12, 10, 8, 6, 4, 2, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], // Rank 1 to 20
+    tiebreakers: ['placementPoints', 'wins', 'killPoints', 'bonusPoints']
 };
 
 // Helper to get current profile
@@ -199,6 +200,7 @@ export const storage = {
             tags: t.rules?.tags || [],
             maxTeams: t.rules?.maxTeams || 20,
             maxMembers: t.rules?.maxMembers || 5, // Unpack maxMembers
+            tiebreakers: t.rules?.tiebreakers || DEFAULT_RULES.tiebreakers, // Unpack tiebreakers
             defaultIcon: t.rules?.defaultIcon || null, // Unpack defaultIcon
             tagRequired: t.rules?.tagRequired ?? true, // Unpack tagRequired
             lockMembers: t.rules?.lockMembers ?? false, // Unpack lockMembers
@@ -219,6 +221,7 @@ export const storage = {
             tags: tourney.tags,
             maxTeams: tourney.maxTeams,
             maxMembers: tourney.maxMembers || 5, // Pack maxMembers
+            tiebreakers: tourney.tiebreakers || DEFAULT_RULES.tiebreakers, // Pack tiebreakers
             defaultIcon: tourney.defaultIcon, // Pack defaultIcon
             tagRequired: tourney.tagRequired ?? true, // Pack tagRequired
             lockMembers: tourney.lockMembers ?? false, // Pack lockMembers
@@ -248,6 +251,7 @@ export const storage = {
                 tags: data.rules?.tags,
                 maxTeams: data.rules?.maxTeams,
                 maxMembers: data.rules?.maxMembers || 5,
+                tiebreakers: data.rules?.tiebreakers || DEFAULT_RULES.tiebreakers,
                 defaultIcon: data.rules?.defaultIcon,
                 tagRequired: data.rules?.tagRequired,
                 lockMembers: data.rules?.lockMembers,
@@ -271,7 +275,8 @@ export const storage = {
                 description: data.rules?.description,
                 tags: data.rules?.tags,
                 maxTeams: data.rules?.maxTeams,
-                maxMembers: data.rules?.maxMembers || 5, // Unpack maxMembers
+                maxMembers: data.rules?.maxMembers || 5,
+                tiebreakers: data.rules?.tiebreakers || DEFAULT_RULES.tiebreakers,
                 defaultIcon: data.rules?.defaultIcon,
                 tagRequired: data.rules?.tagRequired,
                 lockMembers: data.rules?.lockMembers,

@@ -100,12 +100,13 @@ const TournamentSettingsModal = ({ tournament, onClose, onSave, canEdit }) => {
     const [rankPoints, setRankPoints] = useState(tournament.scoringRules?.rankPoints || storage.DEFAULT_RULES.rankPoints);
     const [tagRequired, setTagRequired] = useState(tournament.tagRequired ?? true);
     const [lockMembers, setLockMembers] = useState(tournament.lockMembers ?? false);
-    const [maxTeams, setMaxTeams] = useState(tournament.maxTeams || 20);
-    const [maxMembers, setMaxMembers] = useState(tournament.maxMembers || 5);
+    const [maxTeams, setMaxTeams] = useState(tournament.maxTeams || '');
+    const [maxMembers, setMaxMembers] = useState(tournament.maxMembers || '');
+    const [tiebreakers, setTiebreakers] = useState(tournament.tiebreakers || ['placementPoints', 'wins', 'killPoints', 'bonusPoints']);
 
     const handleRankPointChange = (idx, val) => {
         const newPoints = [...rankPoints];
-        newPoints[idx] = parseInt(val) || 0;
+        newPoints[idx] = val === '' ? '' : (parseInt(val) || 0);
         setRankPoints(newPoints);
     };
 
@@ -113,14 +114,15 @@ const TournamentSettingsModal = ({ tournament, onClose, onSave, canEdit }) => {
         onSave({
             ...tournament,
             description,
-            maxTeams,
-            maxMembers,
+            maxTeams: parseInt(maxTeams) || 20,
+            maxMembers: parseInt(maxMembers) || 5,
+            tiebreakers,
             tagRequired,
             lockMembers,
             scoringRules: {
                 ...tournament.scoringRules,
-                killPoint,
-                rankPoints
+                killPoint: parseInt(killPoint) || 0,
+                rankPoints: rankPoints.map(p => parseInt(p) || 0)
             }
         });
     };
@@ -166,7 +168,8 @@ const TournamentSettingsModal = ({ tournament, onClose, onSave, canEdit }) => {
                                         type="number"
                                         min="1"
                                         value={maxMembers}
-                                        onChange={(e) => setMaxMembers(parseInt(e.target.value) || 1)}
+                                        placeholder="5"
+                                        onChange={(e) => setMaxMembers(e.target.value)}
                                         style={{ width: '100%', padding: '0.5rem', backgroundColor: '#111827', border: '1px solid #4b5563', color: 'white', borderRadius: '4px' }}
                                     />
                                 ) : (
@@ -202,6 +205,43 @@ const TournamentSettingsModal = ({ tournament, onClose, onSave, canEdit }) => {
                         </div>
                     </section>
 
+                    {/* Tiebreaker Settings Section */}
+                    <section>
+                        <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', borderBottom: '1px solid #374151', paddingBottom: '0.25rem' }}>同率時の順位決定優先度 (1位〜4位)</h3>
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px' }}>
+                            {tiebreakers.map((tb, idx) => (
+                                <div key={idx} style={{ flex: 1 }}>
+                                    <label style={{ display: 'block', fontSize: '0.75rem', color: '#9ca3af', marginBottom: '4px' }}>第{idx + 1}優先</label>
+                                    {canEdit ? (
+                                        <select
+                                            value={tb}
+                                            onChange={(e) => {
+                                                const newTb = [...tiebreakers];
+                                                newTb[idx] = e.target.value;
+                                                setTiebreakers(newTb);
+                                            }}
+                                            style={{ width: '100%', padding: '0.5rem', backgroundColor: '#111827', border: '1px solid #4b5563', color: 'white', borderRadius: '4px', fontSize: '0.85rem' }}
+                                        >
+                                            <option value="placementPoints">順位ポイント</option>
+                                            <option value="wins">勝利数</option>
+                                            <option value="killPoints">キルポイント</option>
+                                            <option value="bonusPoints">ボーナス</option>
+                                        </select>
+                                    ) : (
+                                        <div style={{ fontWeight: 'bold', fontSize: '0.85rem' }}>
+                                            {tb === 'placementPoints' ? '順位ポイント' :
+                                                tb === 'wins' ? '勝利数' :
+                                                    tb === 'killPoints' ? 'キルポイント' : 'ボーナス'}
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                        <p style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.8rem' }}>
+                            ※トータルポイントが同じ場合に参照される順番です。
+                        </p>
+                    </section>
+
                     {/* Scoring Rules Section */}
                     <section>
                         <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', borderBottom: '1px solid #374151', paddingBottom: '0.25rem' }}>スコアリング</h3>
@@ -211,7 +251,8 @@ const TournamentSettingsModal = ({ tournament, onClose, onSave, canEdit }) => {
                                 <input
                                     type="number"
                                     value={killPoint}
-                                    onChange={(e) => setKillPoint(parseInt(e.target.value) || 0)}
+                                    placeholder="1"
+                                    onChange={(e) => setKillPoint(e.target.value)}
                                     style={{ width: '60px', padding: '0.4rem', backgroundColor: '#111827', border: '1px solid #4b5563', color: 'white', borderRadius: '4px', textAlign: 'center' }}
                                 />
                             ) : (
@@ -1667,7 +1708,7 @@ const ResultInput = ({ tournament, teams, initialResults, onSave }) => {
     );
 };
 
-const PlayerRankingTable = ({ tournament, teams, results, dayFilter }) => {
+const PlayerRankingTable = ({ tournament, teams, results, dayFilter, standings }) => {
     const [players, setPlayers] = useState([]);
 
     // Helper to get round range
@@ -1715,8 +1756,43 @@ const PlayerRankingTable = ({ tournament, teams, results, dayFilter }) => {
                     }
                 });
             });
-            playerStats.sort((a, b) => b.totalKills - a.totalKills);
-            setPlayers(playerStats);
+            // Improved Sort: Individual Kills > Team Points > Team Rank
+            const teamContextMap = {};
+            standings.forEach(s => { teamContextMap[s.id] = { rank: s.rank, totalPoints: s.totalPoints }; });
+
+            // Enhance player stats with team context for sorting
+            const enhancedStats = playerStats.map(p => {
+                const teamId = teams.find(t => teamMap[t.id] === p.teamName)?.id;
+                const teamCtx = teamContextMap[teamId];
+                return {
+                    ...p,
+                    teamRank: teamCtx?.rank || 99,
+                    teamTotalPoints: teamCtx?.totalPoints || 0
+                };
+            });
+
+            enhancedStats.sort((a, b) => {
+                if (b.totalKills !== a.totalKills) return b.totalKills - a.totalKills;
+                if (b.teamTotalPoints !== a.teamTotalPoints) return b.teamTotalPoints - a.teamTotalPoints;
+                return a.teamRank - b.teamRank;
+            });
+
+            // Apply Olympic rank for players
+            let currentRank = 1;
+            const rankedPlayers = enhancedStats.map((p, idx) => {
+                if (idx > 0) {
+                    const prev = enhancedStats[idx - 1];
+                    const isTied = (p.totalKills === prev.totalKills &&
+                        p.teamTotalPoints === prev.teamTotalPoints &&
+                        p.teamRank === prev.teamRank);
+                    if (!isTied) {
+                        currentRank = idx + 1;
+                    }
+                }
+                return { ...p, rank: currentRank };
+            });
+
+            setPlayers(rankedPlayers);
         };
         loadStats();
     }, [tournament, teams, results, dayFilter]);
@@ -1735,8 +1811,8 @@ const PlayerRankingTable = ({ tournament, teams, results, dayFilter }) => {
                 <tbody>
                     {players.map((p, idx) => (
                         <tr key={p.id} style={{ borderBottom: '1px solid var(--card-border)' }}>
-                            <td style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 'bold', color: idx < 3 ? '#eab308' : '#374151' }}>
-                                {idx + 1}
+                            <td style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 'bold', color: p.rank < 4 ? '#eab308' : '#374151' }}>
+                                {p.rank}
                             </td>
                             <td style={{ padding: '0.75rem', fontWeight: '600' }}>{p.name}</td>
                             <td style={{ padding: '0.75rem', color: '#6b7280' }}>{p.teamName}</td>
@@ -1967,9 +2043,11 @@ const TournamentDetail = () => {
             endRound = start + (tournament.schedule[dayFilter].rounds || 0) - 1;
         }
 
-        const standings = teams.map(team => {
+        const standingsData = teams.map(team => {
             let totalPoints = 0;
+            let placementPointsTotal = 0;
             let totalKills = 0;
+            let bonusPointsTotal = 0;
             let playedRounds = 0;
             let wins = 0;
 
@@ -1978,16 +2056,20 @@ const TournamentDetail = () => {
                 if (results[roundKey] && results[roundKey][team.id]) {
                     const res = results[roundKey][team.id];
 
-                    // Calculate based on tournament rules on the fly for consistency
                     const rank = res.rank || 0;
-                    const placementPoints = (tournament.scoringRules?.rankPoints && rank > 0)
+                    const pPoints = (tournament.scoringRules?.rankPoints && rank > 0)
                         ? (tournament.scoringRules.rankPoints[rank - 1] || 0)
                         : 0;
                     const kp = tournament.scoringRules?.killPoint ?? 1;
-                    const roundTotal = placementPoints + (res.kills * kp) - (res.penalty || 0) + (res.bonus || 0);
+                    const kPoints = (res.kills || 0) * kp;
+                    const bPoints = res.bonus || 0;
+                    const penalty = res.penalty || 0;
 
-                    totalPoints += roundTotal;
+                    placementPointsTotal += pPoints;
                     totalKills += (res.kills || 0);
+                    bonusPointsTotal += bPoints;
+                    totalPoints += (pPoints + kPoints + bPoints - penalty);
+
                     if (res.rank === 1) wins++;
                     playedRounds++;
                 }
@@ -1996,14 +2078,54 @@ const TournamentDetail = () => {
             return {
                 ...team,
                 totalPoints,
+                placementPoints: placementPointsTotal,
+                killPoints: totalKills * (tournament.scoringRules?.killPoint ?? 1),
                 totalKills,
                 wins,
+                bonusPoints: bonusPointsTotal,
                 playedRounds
             };
         });
 
-        // Sort by Total Points DESC
-        return standings.sort((a, b) => b.totalPoints - a.totalPoints);
+        const tiebreakerPriorities = tournament.tiebreakers || ['placementPoints', 'wins', 'killPoints', 'bonusPoints'];
+
+        // Multi-level sorting
+        const sorted = standingsData.sort((a, b) => {
+            // First Priority: Total Points
+            if (b.totalPoints !== a.totalPoints) return b.totalPoints - a.totalPoints;
+
+            // Tiebreakers
+            for (const priority of tiebreakerPriorities) {
+                if (b[priority] !== a[priority]) {
+                    return b[priority] - a[priority];
+                }
+            }
+            return 0;
+        });
+
+        // Assign Olympic Rank
+        let currentRank = 1;
+        const rankedResults = sorted.map((team, idx) => {
+            if (idx > 0) {
+                const prev = sorted[idx - 1];
+                let isTied = prev.totalPoints === team.totalPoints;
+                if (isTied) {
+                    for (const priority of tiebreakerPriorities) {
+                        if (prev[priority] !== team[priority]) {
+                            isTied = false;
+                            break;
+                        }
+                    }
+                }
+
+                if (!isTied) {
+                    currentRank = idx + 1;
+                }
+            }
+            return { ...team, rank: currentRank };
+        });
+
+        return rankedResults;
     };
 
     const standings = calculateStandings();
@@ -2510,8 +2632,8 @@ const TournamentDetail = () => {
                                         borderBottom: '1px solid var(--card-border)',
                                         backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.05)'
                                     }}>
-                                        <td style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 'bold', color: idx < 3 ? '#eab308' : 'var(--text-muted)', borderRight: '1px solid var(--card-border)', backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.05)' }}>
-                                            {idx + 1}
+                                        <td style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 'bold', color: team.rank < 4 ? '#eab308' : 'var(--text-muted)', borderRight: '1px solid var(--card-border)', backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.05)' }}>
+                                            {team.rank}
                                         </td>
                                         <td style={{ padding: '0.75rem', borderRight: '1px solid var(--card-border)', backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.05)' }}>
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -2688,7 +2810,7 @@ const TournamentDetail = () => {
                                     ))}
                                 </div>
                             )}
-                            <PlayerRankingTable tournament={tournament} teams={teams} results={results} dayFilter={dayFilter} />
+                            <PlayerRankingTable tournament={tournament} teams={teams} results={results} dayFilter={dayFilter} standings={standings} />
                         </>
                     )
                 }

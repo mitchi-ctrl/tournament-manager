@@ -1,17 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { storage } from '../lib/storage';
-import { Calendar, Users, Trophy, Plus, Trash2, BookOpen } from 'lucide-react';
+import { Calendar, Users, Trophy, Plus, Trash2, BookOpen, Medal } from 'lucide-react';
 
 const TournamentCreate = () => {
     const navigate = useNavigate();
     const [name, setName] = useState('');
     const [status, setStatus] = useState('upcoming');
-    const [maxTeams, setMaxTeams] = useState(20);
+    const [maxTeams, setMaxTeams] = useState('');
     const [schedule, setSchedule] = useState([]);
     const [description, setDescription] = useState('');
     const [tagRequired, setTagRequired] = useState(true);
-    const [maxMembers, setMaxMembers] = useState(5);
+    const [maxMembers, setMaxMembers] = useState('');
     const [lockMembers, setLockMembers] = useState(false);
     const [scoringRules, setScoringRules] = useState(storage.DEFAULT_RULES);
     const [showAdvancedScoring, setShowAdvancedScoring] = useState(false);
@@ -19,6 +19,8 @@ const TournamentCreate = () => {
     // Tags (Prohibited Actions / Rules)
     const [tags, setTags] = useState([]);
     const [tagInput, setTagInput] = useState('');
+
+    const [tiebreakers, setTiebreakers] = useState(['placementPoints', 'wins', 'killPoints', 'bonusPoints']);
 
     useEffect(() => {
         const loadSettings = async () => {
@@ -28,7 +30,7 @@ const TournamentCreate = () => {
 
             // Default schedule with Day 1
             const today = new Date().toISOString().split('T')[0];
-            setSchedule([{ name: 'Day 1', date: today, rounds: 4 }]);
+            setSchedule([{ name: 'Day 1', date: today, rounds: '' }]);
         };
         loadSettings();
     }, []);
@@ -47,7 +49,7 @@ const TournamentCreate = () => {
             nextDate = new Date().toISOString().split('T')[0];
         }
 
-        setSchedule([...schedule, { name: `Day ${nextDayNum}`, date: nextDate, rounds: 4 }]);
+        setSchedule([...schedule, { name: `Day ${nextDayNum}`, date: nextDate, rounds: '' }]);
     };
 
     const handleRemoveDay = (idx) => {
@@ -85,7 +87,7 @@ const TournamentCreate = () => {
         // Teams are now optional at creation
         // if (selectedTeamIds.length < 2) { alert('Please select at least 2 teams'); return; }
 
-        const totalRounds = schedule.reduce((sum, day) => sum + parseInt(day.rounds || 0), 0);
+        const totalRounds = schedule.reduce((sum, day) => sum + (parseInt(day.rounds) || 0), 0);
 
         const newTournament = {
             // id: 'tourney-' + Date.now(), // REMOVE: Let backend generate UUID
@@ -94,14 +96,15 @@ const TournamentCreate = () => {
             status: status,
             rounds: totalRounds,
             teams: [], // Teams managed in Entry tab
-            maxTeams: maxTeams, // Save max teams limit
-            schedule: schedule, // Save the full schedule
+            maxTeams: parseInt(maxTeams) || 20, // Save max teams limit
+            schedule: schedule.map(day => ({ ...day, rounds: parseInt(day.rounds) || 0 })), // Save the full schedule
             scoringRules: scoringRules, // Save custom rules
             tagRequired: tagRequired, // Save tag requirement
             lockMembers: lockMembers, // Save member lock setting
             ownerId: storage.getCurrentUser().id, // Owner
             tags: tags, // Save tags
-            maxMembers: maxMembers,
+            maxMembers: parseInt(maxMembers) || 5,
+            tiebreakers: tiebreakers,
             description: description, // Save description / rules
             createdAt: new Date().toISOString()
         };
@@ -150,7 +153,8 @@ const TournamentCreate = () => {
                             type="number"
                             min="2"
                             value={maxTeams}
-                            onChange={(e) => setMaxTeams(parseInt(e.target.value) || 20)}
+                            placeholder="20"
+                            onChange={(e) => setMaxTeams(e.target.value)}
                             style={{ width: '100%', padding: '0.75rem', borderRadius: '8px', border: '1px solid #4b5563', backgroundColor: '#0b0b0e', color: 'white' }}
                         />
                     </div>
@@ -185,7 +189,8 @@ const TournamentCreate = () => {
                                     type="number"
                                     min="1"
                                     value={maxMembers}
-                                    onChange={(e) => setMaxMembers(parseInt(e.target.value) || 5)}
+                                    placeholder="5"
+                                    onChange={(e) => setMaxMembers(e.target.value)}
                                     style={{ width: '50px', padding: '4px', borderRadius: '4px', border: '1px solid #4b5563', backgroundColor: '#111827', color: '#eab308', textAlign: 'center', fontWeight: 'bold' }}
                                 />
                             </div>
@@ -238,7 +243,8 @@ const TournamentCreate = () => {
                                         type="number"
                                         min="1"
                                         value={day.rounds}
-                                        onChange={(e) => handleDayChange(idx, 'rounds', parseInt(e.target.value) || 1)}
+                                        placeholder="4"
+                                        onChange={(e) => handleDayChange(idx, 'rounds', e.target.value)}
                                         style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #4b5563', backgroundColor: '#0b0b0e', color: 'white', textAlign: 'center' }}
                                     />
                                 </div>
@@ -312,6 +318,33 @@ const TournamentCreate = () => {
                             </div>
                         </div>
                     )}
+                </div>
+
+                <div style={{ marginBottom: '1.5rem', border: '1px solid #374151', borderRadius: '8px', padding: '1rem', backgroundColor: '#111827' }}>
+                    <label style={{ display: 'block', marginBottom: '1rem', fontWeight: 'bold', fontSize: '0.9rem', color: '#9ca3af', textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Medal size={18} /> 同率時の順位決定優先度 (1位〜4位)
+                    </label>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '10px' }}>
+                        {tiebreakers.map((tb, idx) => (
+                            <div key={idx} style={{ flex: 1 }}>
+                                <label style={{ display: 'block', fontSize: '0.75rem', color: '#6b7280', marginBottom: '4px' }}>第{idx + 1}優先</label>
+                                <select
+                                    value={tb}
+                                    onChange={(e) => {
+                                        const newTb = [...tiebreakers];
+                                        newTb[idx] = e.target.value;
+                                        setTiebreakers(newTb);
+                                    }}
+                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '4px', border: '1px solid #4b5563', backgroundColor: '#0b0b0e', color: 'white', fontSize: '0.85rem' }}
+                                >
+                                    <option value="placementPoints">順位ポイント</option>
+                                    <option value="wins">勝利数</option>
+                                    <option value="killPoints">キルポイント</option>
+                                    <option value="bonusPoints">ボーナス</option>
+                                </select>
+                            </div>
+                        ))}
+                    </div>
                 </div>
 
                 <div style={{ marginBottom: '1.5rem' }}>
