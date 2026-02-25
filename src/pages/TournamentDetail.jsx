@@ -1756,9 +1756,15 @@ const PlayerRankingTable = ({ tournament, teams, results, dayFilter, standings }
                     }
                 });
             });
-            // Improved Sort: Individual Kills > Team Points > Team Rank
+            // Use the standings prop for team context
             const teamContextMap = {};
-            standings.forEach(s => { teamContextMap[s.id] = { rank: s.rank, totalPoints: s.totalPoints }; });
+            standings.forEach((s, sIdx) => {
+                teamContextMap[s.id] = {
+                    rank: s.rank,
+                    totalPoints: s.totalPoints,
+                    sortOrder: sIdx // Use the sorted index as a definitive tiebreaker
+                };
+            });
 
             // Enhance player stats with team context for sorting
             const enhancedStats = playerStats.map(p => {
@@ -1767,27 +1773,22 @@ const PlayerRankingTable = ({ tournament, teams, results, dayFilter, standings }
                 return {
                     ...p,
                     teamRank: teamCtx?.rank || 99,
-                    teamTotalPoints: teamCtx?.totalPoints || 0
+                    teamTotalPoints: teamCtx?.totalPoints || 0,
+                    teamSortOrder: teamCtx?.sortOrder ?? 999
                 };
             });
 
             enhancedStats.sort((a, b) => {
                 if (b.totalKills !== a.totalKills) return b.totalKills - a.totalKills;
-                if (b.teamTotalPoints !== a.teamTotalPoints) return b.teamTotalPoints - a.teamTotalPoints;
-                return a.teamRank - b.teamRank;
+                // If kills are tied, use team's standings sort order
+                return a.teamSortOrder - b.teamSortOrder;
             });
 
             // Apply Olympic rank for players
             let currentRank = 1;
             const rankedPlayers = enhancedStats.map((p, idx) => {
-                if (idx > 0) {
-                    const prev = enhancedStats[idx - 1];
-                    const isTied = (p.totalKills === prev.totalKills &&
-                        p.teamTotalPoints === prev.teamTotalPoints &&
-                        p.teamRank === prev.teamRank);
-                    if (!isTied) {
-                        currentRank = idx + 1;
-                    }
+                if (idx > 0 && p.totalKills < enhancedStats[idx - 1].totalKills) {
+                    currentRank = idx + 1;
                 }
                 return { ...p, rank: currentRank };
             });
@@ -2109,15 +2110,6 @@ const TournamentDetail = () => {
             if (idx > 0) {
                 const prev = sorted[idx - 1];
                 let isTied = prev.totalPoints === team.totalPoints;
-                if (isTied) {
-                    for (const priority of tiebreakerPriorities) {
-                        if (prev[priority] !== team[priority]) {
-                            isTied = false;
-                            break;
-                        }
-                    }
-                }
-
                 if (!isTied) {
                     currentRank = idx + 1;
                 }
