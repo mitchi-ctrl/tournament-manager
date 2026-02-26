@@ -103,11 +103,24 @@ const TournamentSettingsModal = ({ tournament, onClose, onSave, canEdit }) => {
     const [maxTeams, setMaxTeams] = useState(tournament.maxTeams || '');
     const [maxMembers, setMaxMembers] = useState(tournament.maxMembers || '');
     const [tiebreakers, setTiebreakers] = useState(tournament.tiebreakers || ['placementPoints', 'wins', 'killPoints', 'bonusPoints']);
+    const [tags, setTags] = useState(tournament.tags || []);
+    const [tagInput, setTagInput] = useState('');
 
     const handleRankPointChange = (idx, val) => {
         const newPoints = [...rankPoints];
         newPoints[idx] = val === '' ? '' : (parseInt(val) || 0);
         setRankPoints(newPoints);
+    };
+
+    const handleAddTag = () => {
+        if (!tagInput.trim()) return;
+        if (tags.includes(tagInput.trim())) return;
+        setTags([...tags, tagInput.trim()]);
+        setTagInput('');
+    };
+
+    const handleRemoveTag = (tagToRemove) => {
+        setTags(tags.filter(tag => tag !== tagToRemove));
     };
 
     const handleSave = () => {
@@ -117,6 +130,7 @@ const TournamentSettingsModal = ({ tournament, onClose, onSave, canEdit }) => {
             maxTeams: parseInt(maxTeams) || 20,
             maxMembers: parseInt(maxMembers) || 5,
             tiebreakers,
+            tags,
             tagRequired,
             lockMembers,
             scoringRules: {
@@ -278,6 +292,57 @@ const TournamentSettingsModal = ({ tournament, onClose, onSave, canEdit }) => {
                                     </div>
                                 ))}
                             </div>
+                        </div>
+                    </section>
+
+                    {/* Prohibited Items Section */}
+                    <section>
+                        <h3 style={{ fontSize: '1rem', marginBottom: '0.5rem', borderBottom: '1px solid #374151', paddingBottom: '0.25rem' }}>禁止事項・ルールタグ</h3>
+                        {canEdit && (
+                            <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.8rem' }}>
+                                <input
+                                    type="text"
+                                    value={tagInput}
+                                    onChange={(e) => setTagInput(e.target.value)}
+                                    placeholder="例: 死体撃ち禁止"
+                                    style={{ flex: 1, padding: '0.5rem', borderRadius: '4px', border: '1px solid #4b5563', backgroundColor: '#111827', color: 'white' }}
+                                    onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+                                />
+                                <button
+                                    onClick={handleAddTag}
+                                    style={{ padding: '0.5rem 1rem', borderRadius: '4px', backgroundColor: '#111827', border: '1px solid #eab308', color: '#eab308', fontWeight: 'bold', cursor: 'pointer' }}
+                                >
+                                    追加
+                                </button>
+                            </div>
+                        )}
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                            {tags.length > 0 ? tags.map((tag, idx) => (
+                                <span key={idx} style={{
+                                    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                                    color: '#ef4444',
+                                    padding: '4px 10px',
+                                    borderRadius: '16px',
+                                    fontSize: '0.8rem',
+                                    fontWeight: 'bold',
+                                    border: '1px solid rgba(239, 68, 68, 0.3)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '6px'
+                                }}>
+                                    <Ban size={12} /> {tag}
+                                    {canEdit && (
+                                        <button
+                                            onClick={() => handleRemoveTag(tag)}
+                                            style={{ background: 'none', border: 'none', padding: 0, color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                                        >
+                                            <X size={14} />
+                                        </button>
+                                    )}
+                                </span>
+                            )) : (
+                                <span style={{ color: '#6b7280', fontSize: '0.85rem' }}>設定されていません。</span>
+                            )}
                         </div>
                     </section>
                 </div>
@@ -2152,7 +2217,7 @@ const TournamentDetail = () => {
     const standings = calculateStandings();
 
     return (
-        <div className="container">
+        <div className="container" style={{ width: '100%', maxWidth: '100vw', overflowX: 'hidden', boxSizing: 'border-box' }}>
             {showScheduleEdit && (
                 <EditScheduleModal
                     tournament={tournament}
@@ -2174,8 +2239,21 @@ const TournamentDetail = () => {
             )}
 
             {/* Sticky Header Wrapper */}
-            <div style={{ position: 'sticky', top: '64px', zIndex: 900, backgroundColor: '#111827', paddingBottom: '1rem', marginTop: '-1rem', paddingTop: '1rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+            <div style={{
+                position: 'sticky',
+                top: '71px',
+                zIndex: 900,
+                backgroundColor: '#111827',
+                paddingBottom: '1rem',
+                marginTop: '-1rem',
+                paddingTop: '1rem',
+                paddingLeft: '10px',
+                paddingRight: '10px',
+                width: '100%',
+                maxWidth: '100%',
+                boxSizing: 'border-box'
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', width: '100%' }}>
                     <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6b7280', textDecoration: 'none' }}>
                         <ArrowLeft size={18} /> 掲示板に戻る
                     </Link>
@@ -2221,7 +2299,7 @@ const TournamentDetail = () => {
                     )}
                 </div>
 
-                <div className="card" style={{ borderTop: '4px solid #eab308' }}>
+                <div className="card" style={{ borderTop: '4px solid #eab308', marginLeft: '10px', marginRight: '10px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
                         <div style={{ width: '100%' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem', flexWrap: 'wrap', width: '100%' }}>
@@ -2231,7 +2309,7 @@ const TournamentDetail = () => {
                                     <DeleteTournamentButton onDelete={handleDelete} />
                                 )}
 
-                                <h1 style={{ margin: 0, fontSize: '2rem', lineHeight: '1' }}>{tournament.name}</h1>
+                                <h1 className="no-uppercase tournament-title">{tournament.name}</h1>
 
                                 {/* Edit Button - Right of Title */}
                                 {canManage && (
@@ -2515,278 +2593,286 @@ const TournamentDetail = () => {
                 </div>
 
                 {activeTab === 'standings' && (
-                    <div style={{ marginTop: '1.5rem', overflowX: 'auto' }} className="no-scrollbar">
+                    <div style={{
+                        marginTop: '1.5rem',
+                        width: '100%',
+                        maxWidth: '100%',
+                        minWidth: 0,
+                        overflowX: 'hidden'
+                    }}>
                         {/* Day Filter UI for Standings */}
                         {tournament.schedule && tournament.schedule.length > 0 && (
-                            <div style={{ display: 'flex', gap: '8px', marginBottom: '1rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                                <button
-                                    onClick={() => setDayFilter('total')}
-                                    style={{
-                                        padding: '0.5rem 1rem',
-                                        borderRadius: '6px',
-                                        border: '1px solid',
-                                        borderColor: dayFilter === 'total' ? '#eab308' : '#374151',
-                                        backgroundColor: dayFilter === 'total' ? 'rgba(234, 179, 8, 0.1)' : 'transparent',
-                                        color: dayFilter === 'total' ? '#eab308' : '#9ca3af',
-                                        fontWeight: 'bold',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    合計
-                                </button>
-                                {tournament.schedule.map((day, idx) => (
-                                    <button
-                                        key={idx}
-                                        onClick={() => setDayFilter(idx)}
-                                        style={{
-                                            padding: '0.5rem 1rem',
-                                            borderRadius: '6px',
-                                            border: '1px solid',
-                                            borderColor: dayFilter === idx ? '#eab308' : '#374151',
-                                            backgroundColor: dayFilter === idx ? 'rgba(234, 179, 8, 0.1)' : 'transparent',
-                                            color: dayFilter === idx ? '#eab308' : '#9ca3af',
-                                            fontWeight: 'bold',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        {day.name}
-                                    </button>
-                                ))}
+                            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                                <div style={{ padding: '0 10px', marginBottom: '12px', display: 'flex', flexDirection: 'column', gap: '8px', minWidth: 0 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                                        {dayFilter === 'total' && (
+                                            <button
+                                                onClick={() => setShowTotalDetails(!showTotalDetails)}
+                                                style={{
+                                                    padding: '6px 14px',
+                                                    borderRadius: '6px',
+                                                    border: '1px solid #4b5563',
+                                                    backgroundColor: '#374151',
+                                                    color: '#f2a900',
+                                                    fontSize: '0.75rem',
+                                                    fontWeight: 'bold',
+                                                    cursor: 'pointer',
+                                                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                                                }}
+                                            >
+                                                {showTotalDetails ? '詳細を隠す' : '詳細を表示'}
+                                            </button>
+                                        )}
+                                    </div>
 
-                                {/* Toggle Button for Total View */}
-                                {dayFilter === 'total' && (
-                                    <button
-                                        onClick={() => setShowTotalDetails(!showTotalDetails)}
-                                        style={{
-                                            marginLeft: 'auto',
-                                            padding: '0.4rem 0.8rem',
-                                            borderRadius: '6px',
-                                            border: '1px solid #4b5563',
-                                            backgroundColor: '#374151',
-                                            color: '#e5e7eb',
-                                            fontSize: '0.8rem',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            gap: '4px'
-                                        }}
-                                    >
-                                        {showTotalDetails ? '詳細を隠す' : '全体を見る'}
-                                    </button>
-                                )}
+                                    <div style={{
+                                        display: 'flex',
+                                        gap: '8px',
+                                        overflowX: 'auto',
+                                        paddingBottom: '4px',
+                                        MsOverflowStyle: 'none',
+                                        scrollbarWidth: 'none'
+                                    }} className="no-scrollbar">
+                                        <button
+                                            onClick={() => setDayFilter('total')}
+                                            style={{
+                                                padding: '0.4rem 0.8rem',
+                                                borderRadius: '6px',
+                                                border: '1px solid',
+                                                borderColor: dayFilter === 'total' ? '#eab308' : '#374151',
+                                                backgroundColor: dayFilter === 'total' ? 'rgba(234, 179, 8, 0.1)' : 'transparent',
+                                                color: dayFilter === 'total' ? '#eab308' : '#9ca3af',
+                                                fontWeight: 'bold',
+                                                cursor: 'pointer',
+                                                fontSize: '0.8rem'
+                                            }}
+                                        >
+                                            合計
+                                        </button>
+                                        {tournament.schedule.map((day, idx) => (
+                                            <button
+                                                key={idx}
+                                                onClick={() => setDayFilter(idx)}
+                                                style={{
+                                                    padding: '0.4rem 0.8rem',
+                                                    borderRadius: '6px',
+                                                    border: '1px solid',
+                                                    borderColor: dayFilter === idx ? '#eab308' : '#374151',
+                                                    backgroundColor: dayFilter === idx ? 'rgba(234, 179, 8, 0.1)' : 'transparent',
+                                                    color: dayFilter === idx ? '#eab308' : '#9ca3af',
+                                                    fontWeight: 'bold',
+                                                    cursor: 'pointer',
+                                                    fontSize: '0.8rem',
+                                                    whiteSpace: 'nowrap'
+                                                }}
+                                            >
+                                                {day.name}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div style={{
+                                    width: '100%',
+                                    overflowX: 'auto',
+                                    borderTop: '1px solid #4b5563',
+                                    borderBottom: '1px solid #4b5563',
+                                    position: 'relative',
+                                    WebkitOverflowScrolling: 'touch'
+                                }}>
+                                    <table className="table-grid" style={{
+                                        width: '100%',
+                                        borderCollapse: 'separate',
+                                        borderSpacing: 0,
+                                        minWidth: (!showTotalDetails && dayFilter === 'total') ? '100%' : '850px',
+                                        fontSize: '0.75rem'
+                                    }}>
+                                        <thead>
+                                            <tr style={{ backgroundColor: '#374151', color: 'white' }}>
+                                                <th rowSpan="2" className="sticky-column mobile-not-sticky" style={{ width: '30px', left: 0, backgroundColor: '#374151', borderRight: '1px solid #4b5563', zIndex: 11 }}>#</th>
+                                                <th rowSpan="2" className="sticky-column mobile-not-sticky" style={{ textAlign: 'left', width: '90px', left: '30px', backgroundColor: '#374151', borderRight: '1px solid #4b5563', zIndex: 11 }}>チーム</th>
+                                                <th rowSpan="2" className="sticky-column mobile-not-sticky" style={{ textAlign: 'center', width: '35px', left: '120px', backgroundColor: '#374151', borderRight: '2px solid #4b5563', zIndex: 11, boxShadow: '2px 0 5px rgba(0,0,0,0.2)' }}>勝</th>
+                                                <th colSpan="2" style={{ textAlign: 'center', backgroundColor: '#4b5563', zIndex: 5 }}>TOTAL</th>
+                                                {dayFilter === 'total' ? (
+                                                    showTotalDetails && tournament.schedule?.map((day, idx) => (
+                                                        <th key={idx} colSpan="3" style={{ textAlign: 'center', backgroundColor: '#374151', fontSize: '0.65rem', zIndex: 5 }}>
+                                                            {day.name.toUpperCase()}<br />TOTAL
+                                                        </th>
+                                                    ))
+                                                ) : (
+                                                    tournament.schedule?.[dayFilter] && (
+                                                        <th colSpan={(tournament.schedule[dayFilter].rounds * 4) + 1} style={{ textAlign: 'center', backgroundColor: '#374151' }}>
+                                                            {tournament.schedule[dayFilter].name.toUpperCase()} DETAILS
+                                                        </th>
+                                                    )
+                                                )}
+                                            </tr>
+                                            <tr style={{ backgroundColor: '#374151', fontSize: '0.7rem', color: '#9ca3af' }}>
+                                                <th style={{ textAlign: 'center', color: '#f2a900' }}>PTS</th>
+                                                <th style={{ textAlign: 'center' }}>KILLS</th>
+                                                {dayFilter === 'total' ? (
+                                                    showTotalDetails && tournament.schedule?.map((_, idx) => (
+                                                        <React.Fragment key={idx}>
+                                                            <th style={{ textAlign: 'center', color: '#f2a900' }}>PTS</th>
+                                                            <th style={{ textAlign: 'center' }}>KILLS</th>
+                                                            <th style={{ textAlign: 'center', fontWeight: 'bold' }}>TOTAL</th>
+                                                        </React.Fragment>
+                                                    ))
+                                                ) : (
+                                                    (() => {
+                                                        const day = tournament.schedule?.[dayFilter];
+                                                        if (!day) return null;
+                                                        return (
+                                                            <>
+                                                                {[...Array(day.rounds)].map((_, rIdx) => (
+                                                                    <React.Fragment key={rIdx}>
+                                                                        <th style={{ textAlign: 'center', width: '30px' }}>R{rIdx + 1}</th>
+                                                                        <th style={{ textAlign: 'center', width: '25px' }}>K</th>
+                                                                        <th style={{ textAlign: 'center', width: '25px', color: '#ef4444' }}>P</th>
+                                                                        <th style={{ textAlign: 'center', width: '35px', fontWeight: 'bold' }}>PT</th>
+                                                                    </React.Fragment>
+                                                                ))}
+                                                                <th style={{ textAlign: 'center', fontWeight: 'bold', backgroundColor: '#4b5563', color: 'white' }}>DAY TOTAL</th>
+                                                            </>
+                                                        );
+                                                    })()
+                                                )}
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {standings.map((team, idx) => (
+                                                <tr key={team.id} style={{
+                                                    backgroundColor: idx % 2 === 0 ? '#1a1a1f' : '#23232a'
+                                                }}>
+                                                    <td className="sticky-column mobile-not-sticky" style={{ textAlign: 'center', fontWeight: 'bold', color: team.rank < 4 ? '#f2a900' : '#9ca3af', left: 0, backgroundColor: idx % 2 === 0 ? '#1a1a1f' : '#23232a', borderRight: '1px solid #4b5563', zIndex: 10, width: '30px' }}>
+                                                        {team.rank}
+                                                    </td>
+                                                    <td className="sticky-column mobile-not-sticky" style={{ left: '30px', backgroundColor: idx % 2 === 0 ? '#1a1a1f' : '#23232a', borderRight: '1px solid #4b5563', zIndex: 10, width: '90px' }}>
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                            {(team.icon || tournament.defaultIcon) ? (
+                                                                <img
+                                                                    src={team.icon || tournament.defaultIcon}
+                                                                    alt={team.name}
+                                                                    style={{ width: '18px', height: '18px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                                                                />
+                                                            ) : (
+                                                                <div style={{ width: '18px', height: '18px', borderRadius: '50%', backgroundColor: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                                                    <Target size={10} color="#9ca3af" />
+                                                                </div>
+                                                            )}
+                                                            <div style={{ fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '65px', fontSize: '0.75rem', color: 'white' }}>{team.name}</div>
+                                                        </div>
+                                                    </td>
+                                                    <td className="sticky-column mobile-not-sticky" style={{ textAlign: 'center', left: '120px', backgroundColor: idx % 2 === 0 ? '#1a1a1f' : '#23232a', borderRight: '2px solid #4b5563', zIndex: 10, width: '35px', boxShadow: '2px 0 5px rgba(0,0,0,0.2)' }}>
+                                                        <div style={{ display: 'flex', justifyContent: 'center', gap: '2px' }}>
+                                                            {[...Array(team.wins || 0)].map((_, i) => (
+                                                                <Crown key={i} size={8} color="#f2a900" fill="#f2a900" />
+                                                            ))}
+                                                            {(team.wins || 0) === 0 && <span style={{ color: '#4b5563', fontSize: '0.75rem' }}>-</span>}
+                                                        </div>
+                                                    </td>
+                                                    <td style={{ textAlign: 'center', fontWeight: 'bold', color: '#f2a900', backgroundColor: 'rgba(242, 169, 0, 0.05)', fontSize: '0.85rem' }}>
+                                                        {team.totalPoints}
+                                                    </td>
+                                                    <td style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.8rem' }}>
+                                                        {team.totalKills}
+                                                    </td>
+                                                    {dayFilter === 'total' ? (
+                                                        showTotalDetails && tournament.schedule?.map((day, dIdx) => {
+                                                            let dayKillPoints = 0;
+                                                            let dayTotalPoints = 0;
+                                                            let dayPenalty = 0;
+
+                                                            // Identify rounds for this day
+                                                            let startR = 1;
+                                                            for (let i = 0; i < dIdx; i++) startR += tournament.schedule[i].rounds;
+
+                                                            for (let r = 0; r < day.rounds; r++) {
+                                                                const rKey = 'round' + (startR + r);
+                                                                const rData = results[rKey]?.[team.id] || {};
+                                                                const rKills = rData.kills || 0;
+                                                                const rRank = rData.rank || 0;
+                                                                const rPenalty = rData.penalty || 0;
+
+                                                                const rPlacementPoints = (tournament.scoringRules?.rankPoints && rRank > 0)
+                                                                    ? (tournament.scoringRules.rankPoints[rRank - 1] || 0)
+                                                                    : 0;
+                                                                const rKp = tournament.scoringRules?.killPoint ?? 1;
+                                                                const rTotal = (rKills || rRank) ? (rPlacementPoints + (rKills * rKp) - rPenalty) : 0;
+
+                                                                dayKillPoints += rKills;
+                                                                dayTotalPoints += rTotal;
+                                                                dayPenalty += rPenalty;
+                                                            }
+
+                                                            const dayRankPoints = dayTotalPoints - dayKillPoints + dayPenalty;
+
+                                                            return (
+                                                                <React.Fragment key={dIdx}>
+                                                                    <td style={{ textAlign: 'center', color: '#f2a900', fontSize: '0.85rem' }}>
+                                                                        {dayRankPoints}
+                                                                    </td>
+                                                                    <td style={{ textAlign: 'center', color: '#9ca3af', fontSize: '0.85rem' }}>
+                                                                        {dayKillPoints}
+                                                                    </td>
+                                                                    <td style={{ textAlign: 'center', fontWeight: 'bold', backgroundColor: 'rgba(255,255,255,0.02)', fontSize: '0.85rem' }}>
+                                                                        {dayTotalPoints}
+                                                                    </td>
+                                                                </React.Fragment>
+                                                            );
+                                                        })
+                                                    ) : (
+                                                        (() => {
+                                                            const day = tournament.schedule?.[dayFilter];
+                                                            if (!day) return null;
+
+                                                            // Calculate start round
+                                                            let startR = 1;
+                                                            for (let i = 0; i < dayFilter; i++) startR += tournament.schedule[i].rounds;
+
+                                                            let dayTotal = 0;
+                                                            const roundCells = [...Array(day.rounds)].map((_, rIdx) => {
+                                                                const rKey = 'round' + (startR + rIdx);
+                                                                const rData = results[rKey]?.[team.id] || {};
+                                                                const rRank = rData.rank || 0;
+                                                                const rKills = rData.kills || 0;
+                                                                const rPenalty = rData.penalty || 0;
+
+                                                                const rPlacementPoints = (tournament.scoringRules?.rankPoints && rRank > 0)
+                                                                    ? (tournament.scoringRules.rankPoints[rRank - 1] || 0)
+                                                                    : 0;
+                                                                const rKp = tournament.scoringRules?.killPoint ?? 1;
+                                                                const rTotal = (rKills || rRank) ? (rPlacementPoints + (rKills * rKp) - rPenalty) : undefined;
+
+                                                                if (rTotal !== undefined) dayTotal += rTotal;
+
+                                                                return (
+                                                                    <React.Fragment key={rIdx}>
+                                                                        <td style={{ textAlign: 'center', fontSize: '0.8rem' }}>{rData.rank || '-'}</td>
+                                                                        <td style={{ textAlign: 'center', fontSize: '0.8rem' }}>{rData.kills !== undefined ? rData.kills : '-'}</td>
+                                                                        <td style={{ textAlign: 'center', fontSize: '0.8rem', color: '#ef4444' }}>{rData.penalty ? `-${rData.penalty}` : '-'}</td>
+                                                                        <td style={{ textAlign: 'center', fontWeight: 'bold' }}>{rTotal !== undefined ? rTotal : '-'}</td>
+                                                                    </React.Fragment>
+                                                                );
+                                                            });
+
+                                                            return (
+                                                                <>
+                                                                    {roundCells}
+                                                                    <td style={{ textAlign: 'center', fontWeight: 'bold', color: '#f2a900', backgroundColor: 'rgba(255,255,255,0.05)' }}>
+                                                                        {dayTotal}
+                                                                    </td>
+                                                                </>
+                                                            );
+                                                        })()
+                                                    )}
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
                             </div>
                         )}
-
-                        <table className="mobile-compact-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.9rem' }}>
-                            <thead>
-                                <tr style={{ borderBottom: '2px solid var(--card-border)' }}>
-                                    <th rowSpan="2" style={{ padding: '0.75rem', textAlign: 'center', width: '30px', borderRight: '1px solid var(--card-border)' }}>#</th>
-                                    <th rowSpan="2" style={{ padding: '0.75rem', textAlign: 'left', minWidth: '80px', borderRight: '1px solid var(--card-border)' }}>チーム</th>
-                                    <th rowSpan="2" style={{ padding: '0.75rem', textAlign: 'center', width: '30px', borderRight: '1px solid var(--card-border)' }}>勝</th>
-
-                                    <th colSpan="2" style={{ padding: '0.5rem', textAlign: 'center', backgroundColor: '#374151' }}>TOTAL</th>
-
-                                    {/* Header Logic: Total vs Day Filter */}
-                                    {dayFilter === 'total' ? (
-                                        // Total View: Show Day Headers ONLY if showTotalDetails is true
-                                        showTotalDetails ? (
-                                            tournament.schedule && tournament.schedule.map((day, idx) => (
-                                                <th key={idx} colSpan="3" style={{ padding: '0.5rem', textAlign: 'center', borderRight: '1px solid var(--card-border)', backgroundColor: '#1f2937' }}>
-                                                    {day.name} <br /><span style={{ fontSize: '0.7rem', fontWeight: 'normal' }}>Total</span>
-                                                </th>
-                                            ))
-                                        ) : null // Hide Day headers in simplified view
-                                    ) : (
-                                        // Single Day View: Show Rounds
-                                        (() => {
-                                            const day = tournament.schedule[dayFilter];
-                                            return (
-                                                <>
-                                                    <th colSpan={(day.rounds * 4) + 1} style={{ padding: '0.5rem', textAlign: 'center', borderRight: '2px solid var(--card-border)', backgroundColor: '#1f2937' }}>
-                                                        {day.name} <span style={{ fontSize: '0.8rem', fontWeight: 'normal' }}>({day.date})</span>
-                                                    </th>
-                                                </>
-                                            );
-                                        })()
-                                    )}
-                                </tr>
-                                <tr style={{ borderBottom: '2px solid #e5e7eb', color: '#6b7280', fontSize: '0.8rem' }}>
-                                    <th style={{ padding: '0.5rem', textAlign: 'center', fontWeight: 'bold', color: 'var(--primary)', backgroundColor: '#374151', minWidth: '60px' }}>Pts</th>
-                                    <th style={{ padding: '0.5rem', textAlign: 'center', backgroundColor: '#374151', minWidth: '60px' }}>Kills</th>
-
-                                    {/* Sub-header Loop */}
-                                    {dayFilter === 'total' ? (
-                                        // Total View Sub-headers
-                                        showTotalDetails ? (
-                                            tournament.schedule && tournament.schedule.map((_, idx) => (
-                                                <React.Fragment key={idx}>
-                                                    <th style={{ padding: '0.5rem', textAlign: 'center', width: '40px', color: '#eab308' }}>Pts</th>
-                                                    <th style={{ padding: '0.5rem', textAlign: 'center', width: '40px' }}>Kills</th>
-                                                    <th style={{ padding: '0.5rem', textAlign: 'center', width: '50px', borderRight: '1px solid var(--card-border)', fontWeight: 'bold' }}>Total</th>
-                                                </React.Fragment>
-                                            ))
-                                        ) : null
-                                    ) : (
-                                        // Single Day View Sub-headers
-                                        (() => {
-                                            const day = tournament.schedule[dayFilter];
-                                            return (
-                                                <>
-                                                    {[...Array(day.rounds)].map((_, rIdx) => (
-                                                        <React.Fragment key={rIdx}>
-                                                            <th style={{ padding: '0.5rem', textAlign: 'center', width: '35px' }}>R{rIdx + 1}</th>
-                                                            <th style={{ padding: '0.5rem', textAlign: 'center', width: '35px' }}>K</th>
-                                                            <th style={{ padding: '0.5rem', textAlign: 'center', width: '35px', color: '#ef4444' }}>P</th>
-                                                            <th style={{ padding: '0.5rem', textAlign: 'center', width: '40px', borderRight: '1px solid var(--card-border)', fontWeight: 'bold' }}>Pt</th>
-                                                        </React.Fragment>
-                                                    ))}
-                                                    <th style={{ padding: '0.5rem', textAlign: 'center', width: '50px', borderRight: '2px solid var(--card-border)', fontWeight: 'bold', color: 'var(--text-main)', backgroundColor: 'rgba(255,255,255,0.05)' }}>Day Total</th>
-                                                </>
-                                            );
-                                        })()
-                                    )}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {standings.map((team, idx) => (
-                                    <tr key={team.id} style={{
-                                        borderBottom: '1px solid var(--card-border)',
-                                        backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.05)'
-                                    }}>
-                                        <td style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 'bold', color: team.rank < 4 ? '#eab308' : 'var(--text-muted)', borderRight: '1px solid var(--card-border)', backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.05)' }}>
-                                            {team.rank}
-                                        </td>
-                                        <td style={{ padding: '0.75rem', borderRight: '1px solid var(--card-border)', backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.05)' }}>
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                {(team.icon || tournament.defaultIcon) ? (
-                                                    <img
-                                                        src={team.icon || tournament.defaultIcon}
-                                                        alt={team.name}
-                                                        style={{ width: '24px', height: '24px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '1px solid var(--card-border)' }}
-                                                    />
-                                                ) : (
-                                                    <div style={{ width: '24px', height: '24px', borderRadius: '50%', backgroundColor: '#374151', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                                                        <Target size={14} color="#9ca3af" />
-                                                    </div>
-                                                )}
-                                                <div style={{ fontWeight: '600', color: 'var(--text-main)' }}>{team.name}</div>
-                                            </div>
-                                        </td>
-                                        <td style={{ padding: '0.75rem', textAlign: 'center', borderRight: '1px solid var(--card-border)', backgroundColor: idx % 2 === 0 ? 'transparent' : 'rgba(255, 255, 255, 0.05)' }}>
-                                            <div style={{ display: 'flex', justifyContent: 'center', flexWrap: 'wrap', gap: '2px' }}>
-                                                {[...Array(team.wins || 0)].map((_, i) => (
-                                                    <Crown key={i} size={14} color="#f2a900" fill="#f2a900" />
-                                                ))}
-                                                {(team.wins || 0) === 0 && <span style={{ color: '#4b5563' }}>-</span>}
-                                            </div>
-                                        </td>
-
-                                        <td style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 'bold', fontSize: '1.1rem', color: '#f2a900', backgroundColor: 'rgba(242, 169, 0, 0.1)' }}>
-                                            {team.totalPoints}
-                                        </td>
-                                        <td style={{ padding: '0.75rem', textAlign: 'center', color: 'var(--text-muted)', backgroundColor: 'rgba(242, 169, 0, 0.05)' }}>
-                                            {team.totalKills}
-                                        </td>
-
-                                        {/* Body Cells */}
-                                        {dayFilter === 'total' ? (
-                                            // Total View: Show Day Summaries ONLY if showTotalDetails is true
-                                            showTotalDetails ? (
-                                                tournament.schedule && tournament.schedule.map((day, dIdx) => {
-                                                    let dayKillPoints = 0;
-                                                    let dayTotalPoints = 0;
-                                                    let dayPenalty = 0;
-
-                                                    // Identify rounds for this day
-                                                    let startR = 1;
-                                                    for (let i = 0; i < dIdx; i++) startR += tournament.schedule[i].rounds;
-
-                                                    for (let r = 0; r < day.rounds; r++) {
-                                                        const rKey = 'round' + (startR + r);
-                                                        const rData = results[rKey]?.[team.id] || {};
-                                                        const rKills = rData.kills || 0;
-                                                        const rRank = rData.rank || 0;
-                                                        const rPenalty = rData.penalty || 0;
-
-                                                        const rPlacementPoints = (tournament.scoringRules?.rankPoints && rRank > 0)
-                                                            ? (tournament.scoringRules.rankPoints[rRank - 1] || 0)
-                                                            : 0;
-                                                        const rKp = tournament.scoringRules?.killPoint ?? 1;
-                                                        const rTotal = rPlacementPoints + (rKills * rKp) - rPenalty;
-
-                                                        dayKillPoints += rKills;
-                                                        dayTotalPoints += rTotal;
-                                                        dayPenalty += rPenalty;
-                                                    }
-
-                                                    const dayRankPoints = dayTotalPoints - dayKillPoints + dayPenalty;
-
-                                                    return (
-                                                        <React.Fragment key={dIdx}>
-                                                            <td style={{ padding: '0.75rem', textAlign: 'center', color: '#eab308', fontSize: '0.9rem' }}>
-                                                                {dayRankPoints}
-                                                            </td>
-                                                            <td style={{ padding: '0.75rem', textAlign: 'center', fontSize: '0.9rem' }}>
-                                                                {dayKillPoints}
-                                                            </td>
-                                                            <td style={{ padding: '0.75rem', textAlign: 'center', fontWeight: 'bold', borderRight: '1px solid var(--card-border)', backgroundColor: 'rgba(255,255,255,0.02)' }}>
-                                                                {dayTotalPoints}
-                                                            </td>
-                                                        </React.Fragment>
-                                                    );
-                                                })
-                                            ) : null
-                                        ) : (
-                                            // Single Day View: Show Round Details
-                                            (() => {
-                                                const day = tournament.schedule[dayFilter];
-                                                // Calculate start round
-                                                let startR = 1;
-                                                for (let i = 0; i < dayFilter; i++) startR += tournament.schedule[i].rounds;
-
-                                                let dayTotal = 0;
-
-                                                const roundCells = [...Array(day.rounds)].map((_, rIdx) => {
-                                                    const rKey = 'round' + (startR + rIdx);
-                                                    const rData = results[rKey]?.[team.id] || {};
-                                                    const rRank = rData.rank || 0;
-                                                    const rKills = rData.kills || 0;
-                                                    const rPenalty = rData.penalty || 0;
-
-                                                    const rPlacementPoints = (tournament.scoringRules?.rankPoints && rRank > 0)
-                                                        ? (tournament.scoringRules.rankPoints[rRank - 1] || 0)
-                                                        : 0;
-                                                    const rKp = tournament.scoringRules?.killPoint ?? 1;
-                                                    const rTotal = (rKills || rRank) ? (rPlacementPoints + (rKills * rKp) - rPenalty) : undefined;
-
-                                                    if (rTotal !== undefined) dayTotal += rTotal;
-
-                                                    return (
-                                                        <React.Fragment key={rIdx}>
-                                                            <td style={{ padding: '0.5rem', textAlign: 'center', fontSize: '0.85rem' }}>{rData.rank || '-'}</td>
-                                                            <td style={{ padding: '0.5rem', textAlign: 'center', fontSize: '0.85rem' }}>{rData.kills !== undefined ? rData.kills : '-'}</td>
-                                                            <td style={{ padding: '0.5rem', textAlign: 'center', fontSize: '0.85rem', color: '#ef4444' }}>{rData.penalty ? `-${rData.penalty}` : '-'}</td>
-                                                            <td style={{ padding: '0.5rem', textAlign: 'center', fontWeight: 'bold', color: 'var(--text-muted)', borderRight: '1px solid var(--card-border)' }}>
-                                                                {rTotal !== undefined ? rTotal : '-'}
-                                                            </td>
-                                                        </React.Fragment>
-                                                    );
-                                                });
-
-                                                return (
-                                                    <>
-                                                        {roundCells}
-                                                        <td style={{ padding: '0.5rem', textAlign: 'center', fontWeight: 'bold', color: 'var(--primary)', borderRight: '2px solid var(--card-border)', backgroundColor: 'rgba(255,255,255,0.05)' }}>
-                                                            {dayTotal}
-                                                        </td>
-                                                    </>
-                                                );
-                                            })()
-                                        )}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
                     </div>
                 )}
 
@@ -2889,7 +2975,7 @@ const TournamentDetail = () => {
                     )
                 }
             </div>
-        </div>
+        </div >
     );
 };
 

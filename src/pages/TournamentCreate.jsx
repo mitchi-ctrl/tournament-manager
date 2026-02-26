@@ -117,7 +117,7 @@ const TournamentCreate = () => {
         <div className="container" style={{ maxWidth: '600px', margin: '0 auto' }}>
             <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
                 <Trophy size={48} color="#eab308" />
-                <h1 style={{ marginBottom: '0.5rem' }}>Create Tournament</h1>
+                <h1 className="no-uppercase" style={{ marginBottom: '0.5rem' }}>Create Tournament</h1>
                 <p style={{ color: '#6b7280' }}>Setup a new casual cup!</p>
             </div>
 

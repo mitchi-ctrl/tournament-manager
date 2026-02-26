@@ -46,53 +46,55 @@ const NavBar = () => {
     if (!user) return null;
 
     return (
-        <nav style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 1000, backgroundColor: '#111827', margin: 0, padding: '1rem', borderBottom: '1px solid #374151' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className="desktop-only" style={{ color: 'var(--primary)', fontWeight: 'bold' }}>GameTourney</span>
-                </div>
-                <Link to="/" className={isActive('/')}>ホーム</Link>
-                <Link to="/guide" className={isActive('/guide')}>使い方</Link>
+        <nav className="fixed-nav">
+            <div className="nav-container">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                    <div className="brand" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span className="desktop-only" style={{ color: 'var(--primary)', fontWeight: 'bold' }}>GameTourney</span>
+                    </div>
+                    <Link to="/" className={isActive('/')}>ホーム</Link>
+                    <Link to="/guide" className={isActive('/guide')}>使い方</Link>
 
-                {(user.role === 'superadmin') && (
-                    <>
-                        <Link to="/admin-users" className={isActive('/admin-users')}>管理</Link>
-                    </>
-                )}
-            </div>
-
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.9rem', color: '#9ca3af' }}>
-                    <User size={16} />
-                    <span className="user-name-display">{user.username}</span>
-                    <span className="desktop-only" style={{
-                        fontSize: '0.7em', padding: '2px 4px', borderRadius: '4px',
-                        background: user.role === 'superadmin' ? '#eab308' : (user.role === 'admin' ? '#ef4444' : '#3b82f6'),
-                        color: user.role === 'superadmin' ? 'black' : 'white',
-                        fontWeight: 'bold'
-                    }}>
-                        {user.role.toUpperCase()}
-                    </span>
+                    {(user.role === 'superadmin') && (
+                        <>
+                            <Link to="/admin-users" className={isActive('/admin-users')}>管理</Link>
+                        </>
+                    )}
                 </div>
-                <Link
-                    to="/settings"
-                    title="設定"
-                    style={{
-                        color: isActive('/settings') ? 'var(--primary)' : '#9ca3af',
-                        display: 'flex',
-                        alignItems: 'center',
-                        marginLeft: '0.5rem'
-                    }}
-                >
-                    <SettingsIcon size={18} />
-                </Link>
-                <button
-                    onClick={handleLogout}
-                    title="ログアウト"
-                    style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
-                >
-                    <LogOut size={18} />
-                </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.9rem', color: '#9ca3af' }}>
+                        <User size={16} />
+                        <span className="user-name-display">{user.username}</span>
+                        <span className="desktop-only" style={{
+                            fontSize: '0.7em', padding: '2px 4px', borderRadius: '4px',
+                            background: user.role === 'superadmin' ? '#eab308' : (user.role === 'admin' ? '#ef4444' : '#3b82f6'),
+                            color: user.role === 'superadmin' ? 'black' : 'white',
+                            fontWeight: 'bold'
+                        }}>
+                            {user.role.toUpperCase()}
+                        </span>
+                    </div>
+                    <Link
+                        to="/settings"
+                        title="設定"
+                        style={{
+                            color: isActive('/settings') ? 'var(--primary)' : '#9ca3af',
+                            display: 'flex',
+                            alignItems: 'center',
+                            marginLeft: '0.5rem'
+                        }}
+                    >
+                        <SettingsIcon size={18} />
+                    </Link>
+                    <button
+                        onClick={handleLogout}
+                        title="ログアウト"
+                        style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    >
+                        <LogOut size={18} />
+                    </button>
+                </div>
             </div>
         </nav>
     );
@@ -174,8 +176,8 @@ function App() {
 
     return (
         <Router>
-            <div className="container">
-                <NavBar />
+            <NavBar />
+            <div className="container" style={{ paddingTop: '70px' }}>
                 <Routes>
                     <Route path="/login" element={<Login />} />
                     <Route path="/register" element={<Register />} />
