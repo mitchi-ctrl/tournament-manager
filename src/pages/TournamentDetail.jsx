@@ -2247,13 +2247,11 @@ const TournamentDetail = () => {
                 paddingBottom: '1rem',
                 marginTop: '-1rem',
                 paddingTop: '1rem',
-                paddingLeft: '10px',
-                paddingRight: '10px',
                 width: '100%',
                 maxWidth: '100%',
                 boxSizing: 'border-box'
             }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', width: '100%' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', width: '100%', paddingLeft: '10px', paddingRight: '10px', boxSizing: 'border-box' }}>
                     <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#6b7280', textDecoration: 'none' }}>
                         <ArrowLeft size={18} /> 掲示板に戻る
                     </Link>
@@ -2299,7 +2297,7 @@ const TournamentDetail = () => {
                     )}
                 </div>
 
-                <div className="card" style={{ borderTop: '4px solid #eab308', marginLeft: '10px', marginRight: '10px' }}>
+                <div className="card" style={{ borderTop: '4px solid #eab308', borderRadius: 0, borderLeft: 'none', borderRight: 'none' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
                         <div style={{ width: '100%' }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '0.5rem', flexWrap: 'wrap', width: '100%' }}>
@@ -2596,7 +2594,7 @@ const TournamentDetail = () => {
                     <div style={{
                         marginTop: '1.5rem',
                         width: '100%',
-                        maxWidth: '100%',
+                        maxWidth: '100vw',
                         minWidth: 0,
                         overflowX: 'hidden'
                     }}>
