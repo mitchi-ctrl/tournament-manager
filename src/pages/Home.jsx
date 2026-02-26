@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { storage } from '../lib/storage';
-import { Trophy, Calendar, Users, ArrowRight, RefreshCw, Search, Key, Star, Plus } from 'lucide-react';
+import { Trophy, Calendar, Users, ArrowRight, RefreshCw, Search, Key, Star, Plus, Pin } from 'lucide-react';
 
 const StatusBadge = ({ status }) => {
     const styles = {
@@ -33,7 +33,8 @@ const Home = () => {
     const [shareCodeInput, setShareCodeInput] = useState('');
     const [searchTerm, setSearchTerm] = useState('');
     const [currentUser, setCurrentUser] = useState(storage.getCurrentUser());
-    const [allUsers, setAllUsers] = useState([]); // Cache users for owner name lookup
+    const [pinnedTournaments, setPinnedTournaments] = useState(() => storage.getCurrentUser()?.pinnedTournaments || []);
+    const [allUsers, setAllUsers] = useState([]);
     const [loading, setLoading] = useState(true);
 
     const loadData = useCallback(async (isInitial = false) => {
@@ -52,11 +53,13 @@ const Home = () => {
                     freshUser.role !== currentUser.role ||
                     JSON.stringify(freshUser.following) !== JSON.stringify(currentUser.following) ||
                     JSON.stringify(freshUser.blocked) !== JSON.stringify(currentUser.blocked) ||
-                    JSON.stringify(freshUser.unlockedTournaments) !== JSON.stringify(currentUser.unlockedTournaments);
+                    JSON.stringify(freshUser.unlockedTournaments) !== JSON.stringify(currentUser.unlockedTournaments) ||
+                    JSON.stringify(freshUser.pinnedTournaments) !== JSON.stringify(currentUser.pinnedTournaments);
 
                 if (hasChanged) {
                     const updated = { ...currentUser, ...freshUser };
                     setCurrentUser(updated);
+                    setPinnedTournaments(freshUser.pinnedTournaments || []);
                     sessionStorage.setItem('tm_session', JSON.stringify(updated));
                 }
             }
@@ -69,6 +72,11 @@ const Home = () => {
             });
 
             accessibleList.sort((a, b) => {
+                // Pinned tournaments come first
+                const isPinnedA = pinnedTournaments.includes(a.id) ? 1 : 0;
+                const isPinnedB = pinnedTournaments.includes(b.id) ? 1 : 0;
+                if (isPinnedA !== isPinnedB) return isPinnedB - isPinnedA;
+
                 const getPriority = (status) => {
                     if (status === 'upcoming' || status === 'active') return 1;
                     return 0;
@@ -103,6 +111,29 @@ const Home = () => {
         });
         setFilteredTournaments(filtered);
     }, [searchTerm, tournaments, allUsers]);
+
+    const handlePin = async (e, tournamentId) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try {
+            const updatedPinned = await storage.pinTournament(tournamentId);
+            setPinnedTournaments(updatedPinned);
+            // Re-sort tournaments with new pinned state
+            setTournaments(prev => {
+                const sorted = [...prev].sort((a, b) => {
+                    const isPinnedA = updatedPinned.includes(a.id) ? 1 : 0;
+                    const isPinnedB = updatedPinned.includes(b.id) ? 1 : 0;
+                    if (isPinnedA !== isPinnedB) return isPinnedB - isPinnedA;
+                    const getPriority = (status) => (status === 'upcoming' || status === 'active') ? 1 : 0;
+                    if (getPriority(a.status) !== getPriority(b.status)) return getPriority(b.status) - getPriority(a.status);
+                    return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+                });
+                return sorted;
+            });
+        } catch (err) {
+            alert('ピンの更新に失敗しました: ' + err.message);
+        }
+    };
 
     const handleUnlock = async (e) => {
         e.preventDefault();
@@ -319,7 +350,9 @@ const Home = () => {
                                                     flexDirection: 'column',
                                                     padding: '0',
                                                     overflow: 'hidden',
-                                                    border: '1px solid #334155',
+                                                    border: pinnedTournaments.includes(t.id)
+                                                        ? '1px solid rgba(234,179,8,0.5)'
+                                                        : '1px solid #334155',
                                                     transition: 'transform 0.2s, box-shadow 0.2s',
                                                     cursor: 'pointer',
                                                     position: 'relative'
@@ -346,7 +379,18 @@ const Home = () => {
                                                         alignItems: 'center',
                                                         padding: '0 0.75rem'
                                                     }}>
-                                                        <div style={{ position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)', zIndex: 10 }}>
+                                                        <div style={{ position: 'absolute', top: '50%', right: '10px', transform: 'translateY(-50%)', zIndex: 10, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                            {pinnedTournaments.includes(t.id) && (
+                                                                <span style={{
+                                                                    backgroundColor: 'rgba(234,179,8,0.15)',
+                                                                    color: '#fbbf24',
+                                                                    fontSize: '0.6rem',
+                                                                    padding: '2px 5px',
+                                                                    borderRadius: '4px',
+                                                                    fontWeight: 'bold',
+                                                                    border: '1px solid rgba(234,179,8,0.4)'
+                                                                }}>ピン中</span>
+                                                            )}
                                                             {isNew(t) && (
                                                                 <span style={{
                                                                     backgroundColor: '#ef4444',
@@ -359,6 +403,29 @@ const Home = () => {
                                                                 }}>NEW</span>
                                                             )}
                                                         </div>
+                                                        <button
+                                                            onClick={(e) => handlePin(e, t.id)}
+                                                            title={pinnedTournaments.includes(t.id) ? 'ピンを外す' : 'ピンする'}
+                                                            style={{
+                                                                position: 'absolute',
+                                                                top: '50%',
+                                                                left: '8px',
+                                                                transform: 'translateY(-50%)',
+                                                                background: 'none',
+                                                                border: 'none',
+                                                                cursor: 'pointer',
+                                                                padding: '2px',
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                color: pinnedTournaments.includes(t.id) ? '#fbbf24' : 'rgba(255,255,255,0.35)',
+                                                                transition: 'color 0.2s',
+                                                                zIndex: 10
+                                                            }}
+                                                            onMouseEnter={(e) => e.currentTarget.style.color = '#fbbf24'}
+                                                            onMouseLeave={(e) => e.currentTarget.style.color = pinnedTournaments.includes(t.id) ? '#fbbf24' : 'rgba(255,255,255,0.35)'}
+                                                        >
+                                                            <Pin size={14} fill={pinnedTournaments.includes(t.id) ? '#fbbf24' : 'none'} />
+                                                        </button>
                                                         <Trophy size={20} style={{ color: 'rgba(255,255,255,0.2)', position: 'absolute', bottom: '-2px', right: '30px', transform: 'rotate(-10deg) scale(2)' }} />
                                                     </div>
 

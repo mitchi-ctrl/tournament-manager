@@ -16,7 +16,8 @@ const mapProfile = (p) => {
         username: p.username || (p.email ? p.email.split('@')[0] : 'Unknown'),
         role: p.role || 'viewer',
         shareCode: p.share_code || '',
-        unlockedTournaments: p.unlocked_tournaments || [], // Add this
+        unlockedTournaments: p.unlocked_tournaments || [],
+        pinnedTournaments: p.pinned_tournaments || [],
         following: p.following || [],
         blocked: p.blocked || [],
         email: p.email
@@ -124,7 +125,8 @@ export const storage = {
         const payload = {
             role: user.role,
             share_code: user.shareCode,
-            unlocked_tournaments: user.unlockedTournaments || [], // Sync this
+            unlocked_tournaments: user.unlockedTournaments || [],
+            pinned_tournaments: user.pinnedTournaments || [],
             following: user.following
         };
         const { error } = await supabase.from('profiles').update(payload).eq('id', user.id);
@@ -140,6 +142,24 @@ export const storage = {
         const { error } = await supabase.from('profiles').update({ share_code: newCode }).eq('id', userId);
         if (error) throw error;
         return newCode;
+    },
+    pinTournament: async (tournamentId) => {
+        const user = storage.getCurrentUser();
+        if (!user) throw new Error('Not logged in');
+        const pinned = user.pinnedTournaments || [];
+        const isPinned = pinned.includes(tournamentId);
+        const updatedPinned = isPinned
+            ? pinned.filter(id => id !== tournamentId)
+            : [...pinned, tournamentId];
+        const { error } = await supabase
+            .from('profiles')
+            .update({ pinned_tournaments: updatedPinned })
+            .eq('id', user.id);
+        if (error) throw error;
+        // Update session
+        const updatedUser = { ...user, pinnedTournaments: updatedPinned };
+        sessionStorage.setItem('tm_session', JSON.stringify(updatedUser));
+        return updatedPinned;
     },
     // NEW: Tournament Share Code Handling
     unlockTournament: async (code) => {

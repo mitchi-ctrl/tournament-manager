@@ -699,7 +699,7 @@ const ChatTab = ({ tournament, currentUser, onTournamentUpdate }) => {
                                                     </div>
                                                 ) : (
                                                     <>
-                                                        <div style={{ wordBreak: 'break-word' }}>{msg.message}</div>
+                                                        <div style={{ wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>{msg.message}</div>
                                                         {msg.image && <img src={msg.image} alt="attachment" style={{ maxWidth: '100%', marginTop: '0.5rem', borderRadius: '4px' }} />}
                                                         {isOwn && (
                                                             <div style={{ marginTop: '0.5rem', display: 'flex', gap: '0.5rem' }}>
@@ -725,14 +725,43 @@ const ChatTab = ({ tournament, currentUser, onTournamentUpdate }) => {
                                     </button>
                                 </div>
                             )}
-                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                <input
-                                    type="text"
+                            <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'flex-end' }}>
+                                <textarea
                                     value={newMessage}
                                     onChange={(e) => setNewMessage(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && handleSend()}
+                                    onKeyDown={(e) => {
+                                        // PC: Enter sends, Shift+Enter adds newline
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            // Only send on Enter without Shift on non-mobile (detect by pointer)
+                                            if (window.matchMedia('(hover: hover)').matches) {
+                                                e.preventDefault();
+                                                handleSend();
+                                            }
+                                            // On touch/mobile: natural Enter = newline, send via button
+                                        }
+                                    }}
                                     placeholder={`#${channels.find(c => c.id === activeChannelId)?.name || ''} にメッセージ送信...`}
-                                    style={{ flex: 1, padding: '0.75rem', borderRadius: '4px', border: '1px solid #4b5563', backgroundColor: '#1f2937', color: 'white' }}
+                                    rows={1}
+                                    style={{
+                                        flex: 1,
+                                        padding: '0.75rem',
+                                        borderRadius: '4px',
+                                        border: '1px solid #4b5563',
+                                        backgroundColor: '#1f2937',
+                                        color: 'white',
+                                        resize: 'none',
+                                        minHeight: '44px',
+                                        maxHeight: '120px',
+                                        overflowY: 'auto',
+                                        lineHeight: '1.4',
+                                        fontFamily: 'inherit',
+                                        fontSize: '1rem'
+                                    }}
+                                    onInput={(e) => {
+                                        // Auto-resize
+                                        e.target.style.height = 'auto';
+                                        e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
+                                    }}
                                 />
                                 <label style={{ padding: '0.75rem', backgroundColor: '#374151', borderRadius: '4px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                                     <ImageIcon size={20} color="#9ca3af" />
