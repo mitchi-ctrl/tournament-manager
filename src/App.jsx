@@ -15,6 +15,7 @@ import Register from './pages/Register';
 import AdminUsers from './pages/AdminUsers';
 import Guide from './pages/Guide';
 import Settings from './pages/Settings';
+import OcrTest from './pages/OcrTest';
 
 // Private Route Wrapper
 const PrivateRoute = ({ children, adminOnly = false, superAdminOnly = false }) => {
@@ -58,6 +59,7 @@ const NavBar = () => {
                     {(user.role === 'superadmin') && (
                         <>
                             <Link to="/admin-users" className={isActive('/admin-users')}>管理</Link>
+                            <Link to="/ocr-test" className={isActive('/ocr-test')} style={{ color: '#eab308' }}>OCRテスト</Link>
                         </>
                     )}
                 </div>
@@ -193,6 +195,7 @@ function App() {
                     <Route path="/create" element={<PrivateRoute adminOnly={true}><TournamentCreate /></PrivateRoute>} />
                     {/* SuperAdmin Only Routes */}
                     <Route path="/admin-users" element={<PrivateRoute superAdminOnly={true}><AdminUsers /></PrivateRoute>} />
+                    <Route path="/ocr-test" element={<PrivateRoute superAdminOnly={true}><OcrTest /></PrivateRoute>} />
                 </Routes>
             </div>
         </Router>

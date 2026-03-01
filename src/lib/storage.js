@@ -475,10 +475,16 @@ export const storage = {
 
         if (existing) {
             const { error } = await supabase.from('results').update(payload).eq('id', existing.id);
-            if (error) console.error("Error updating result:", error);
+            if (error) {
+                console.error("Error updating result:", error);
+                throw error;
+            }
         } else {
             const { error } = await supabase.from('results').insert(payload);
-            if (error) console.error("Error inserting result:", error);
+            if (error) {
+                console.error("Error inserting result:", error);
+                throw error;
+            }
         }
     },
 
