@@ -33,8 +33,15 @@ export default function OcrTest() {
     }, []);
 
     useEffect(() => {
-        if (selectedTournament) {
+        if (selectedTournament && tournaments.length > 0) {
             fetchPlayers(selectedTournament);
+
+            // SYNC FIX: Refresh schedule when manual selection changes
+            const tourney = tournaments.find(t => t.id === selectedTournament);
+            if (tourney && tourney.schedule) {
+                updateSchedule(tourney.schedule);
+            }
+
             setResults([]); // Clear previous results when tournament changes
             setRawText([]);
             setProcessedPlayerIds(new Set());
@@ -42,17 +49,12 @@ export default function OcrTest() {
         } else {
             setPlayers([]);
         }
-    }, [selectedTournament]);
+    }, [selectedTournament, tournaments]);
 
     const fetchTournaments = async () => {
         setIsInitializing(true);
         try {
-            const { data, error } = await supabase
-                .from('tournaments')
-                .select('id, name, schedule, scoringRules')
-                .order('created_at', { ascending: false });
-
-            if (error) throw error;
+            const data = await storage.getTournaments();
             setTournaments(data || []);
             if (data && data.length > 0) {
                 // Default to most recent
@@ -104,16 +106,13 @@ export default function OcrTest() {
             const teamsData = await storage.getTeams(tournamentId);
             setTeams(teamsData || []);
 
-            // Fetch generic players utilizing fallback profiles in storage.js
+            // Fetch ALL generic players to ensure OCR always has a pool to match against
             const allPlayers = await storage.getPlayers();
 
-            // Map players to tournament teams
-            const mappedPlayers = [];
-
-            allPlayers.forEach(p => {
+            // Map players to tournament teams, but INCLUDE all players for wider OCR search compatibility
+            const mappedPlayers = allPlayers.map(p => {
                 let foundTeam = null;
                 for (const t of teamsData) {
-                    // some tables use memberIds, others member_ids. Fallbacks apply.
                     const idsToMatch = t.memberIds || t.member_ids || [];
                     if (idsToMatch.includes(p.id)) {
                         foundTeam = t;
@@ -121,19 +120,17 @@ export default function OcrTest() {
                     }
                 }
 
-                if (foundTeam) {
-                    mappedPlayers.push({
-                        ...p,
-                        team_id: foundTeam.id,
-                        teams: { name: foundTeam.name }
-                    });
-                }
+                return {
+                    ...p,
+                    team_id: foundTeam ? foundTeam.id : null,
+                    teams: foundTeam ? { name: foundTeam.name } : null
+                };
             });
 
             setPlayers(mappedPlayers);
         } catch (error) {
             console.error('Error fetching players:', error);
-            alert('Failed to load players and teams. Check console.');
+            alert('Failed to load players and teams.');
         } finally {
             setIsInitializing(false);
         }
@@ -253,11 +250,15 @@ export default function OcrTest() {
             }
         }
 
-        // 2. Position-based Fallback (If not found in text)
-        // Note: LT/LB are R1/R2.
-        if (detectedRank === 0 || isNaN(detectedRank)) {
+        // 2. Position-based Fallback (Crucial for 0% accuracy fix)
+        // If not found in text, use the slot position to estimate the rank
+        if (!detectedRank || isNaN(detectedRank)) {
             if (slicePos === 'LT') detectedRank = 1;
             else if (slicePos === 'LB') detectedRank = 2;
+            else if (slicePos === 'RT') detectedRank = 3;
+            else if (slicePos === 'RM') detectedRank = 4;
+            else if (slicePos === 'RB') detectedRank = 5;
+            else detectedRank = "?";
         }
 
         // Noise and hallucination exclusion
@@ -346,17 +347,17 @@ export default function OcrTest() {
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.onload = () => {
-                // REFINED: 2-Column Geometry (Boundary adjustment for Slot 4/5)
+                // PRECISION REFINED: Final tweaks for Zoom and Bleed resolution
                 const slices = [
-                    // LEFT COLUMN (X: 0.04 to 0.50)
-                    { pos: 'LT', x: 0.04, y: 0.15, w: 0.46, h: 0.38 }, // Left Top (Slot 1)
-                    { pos: 'LB', x: 0.04, y: 0.53, w: 0.46, h: 0.39 }, // Left Bottom (Slot 2)
+                    // LEFT COLUMN (Tightened X: 0.08 to 0.48)
+                    { pos: 'LT', x: 0.08, y: 0.18, w: 0.40, h: 0.30 }, // Slot 1 - Zoomed in on text
+                    { pos: 'LB', x: 0.08, y: 0.48, w: 0.40, h: 0.44 }, // Slot 2 - Shifted Up, expanded h
 
-                    // RIGHT COLUMN (X: 0.50 to 0.96)
-                    // Adjusted boundaries to avoid rank bleeding (R4/R7 into R5/R8)
-                    { pos: 'RT', x: 0.50, y: 0.18, w: 0.46, h: 0.23 }, // Right Top (Slot 3) - Lowered h slightly
-                    { pos: 'RM', x: 0.50, y: 0.41, w: 0.46, h: 0.24 }, // Right Mid (Slot 4) - Shifted Up
-                    { pos: 'RB', x: 0.50, y: 0.65, w: 0.46, h: 0.30 }  // Right Bottom (Slot 5) - Shifted Up, wider cover
+                    // RIGHT COLUMN (Tightened X: 0.52 to 0.92)
+                    // OVERLAP STRATEGY: Shift RM/RB UP to resolve gaps while keeping RT height
+                    { pos: 'RT', x: 0.52, y: 0.18, w: 0.40, h: 0.24 }, // Slot 3 (RT) - End: 0.42
+                    { pos: 'RM', x: 0.52, y: 0.38, w: 0.40, h: 0.24 }, // Slot 4 (RM) - Starts earlier (0.38), End: 0.62
+                    { pos: 'RB', x: 0.52, y: 0.60, w: 0.40, h: 0.35 }  // Slot 5 (RB) - Starts earlier (0.60), End: 0.95
                 ];
 
                 const processSlice = (s) => {
@@ -637,6 +638,58 @@ export default function OcrTest() {
                     grid-template-columns: 1fr 1fr;
                     gap: 2rem;
                 }
+                .context-selectors {
+                    display: flex;
+                    gap: 1.5rem;
+                }
+                .premium-select-wrapper {
+                    position: relative;
+                    flex: 1;
+                    display: flex;
+                    flex-direction: column;
+                    gap: 0.5rem;
+                }
+                .premium-select-wrapper label {
+                    font-size: 0.75rem;
+                    text-transform: uppercase;
+                    letter-spacing: 0.1em;
+                    color: #64748b;
+                    font-weight: 800;
+                    margin-left: 2px;
+                }
+                .premium-select {
+                    width: 100%;
+                    padding: 0.85rem 1rem;
+                    border-radius: 10px;
+                    background: #1e293b;
+                    border: 1px solid #334155;
+                    color: #f8fafc;
+                    font-size: 0.95rem;
+                    font-weight: 600;
+                    cursor: pointer;
+                    appearance: none;
+                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+                    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+                    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%2394a3b8'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+                    background-repeat: no-repeat;
+                    background-position: right 1rem center;
+                    background-size: 1.25rem;
+                }
+                .premium-select:hover {
+                    border-color: #475569;
+                    background-color: #262f3f;
+                    transform: translateY(-1px);
+                }
+                .premium-select:focus {
+                    outline: none;
+                    border-color: #3b82f6;
+                    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+                }
+                .premium-select option {
+                    background-color: #0f172a;
+                    color: white;
+                    padding: 1rem;
+                }
                 .member-grid {
                     display: grid;
                     grid-template-columns: 1fr 1fr;
@@ -781,26 +834,33 @@ export default function OcrTest() {
                 </div>
             </div>
 
-            <div className="card" style={{ marginBottom: '1.5rem', padding: '1.2rem' }}>
-                <h3 style={{ marginTop: 0, marginBottom: '1rem', fontSize: '1rem', fontWeight: '800' }}>1. Set Context</h3>
-                <div style={{ display: 'flex', gap: '1.2rem' }} className="context-selectors">
-                    <select
-                        value={selectedTournament}
-                        onChange={(e) => setSelectedTournament(e.target.value)}
-                        style={{ flex: 1.5, padding: '0.75rem', borderRadius: '6px', background: 'var(--surface-color)', border: '1px solid var(--border-color)', color: 'white', fontSize: '0.9rem' }}
-                    >
-                        <option value="">Select Tournament...</option>
-                        {tournaments.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
-                    </select>
+            <div className="card" style={{ marginBottom: '1.5rem', padding: '1.5rem', background: 'linear-gradient(145deg, #1e293b 0%, #0f172a 100%)', border: '1px solid #334155' }}>
+                <h3 style={{ marginTop: 0, marginBottom: '1.2rem', fontSize: '0.85rem', fontWeight: '900', color: '#3b82f6', textTransform: 'uppercase', letterSpacing: '0.05em' }}>1. Set Match Context</h3>
+                <div className="context-selectors">
+                    <div className="premium-select-wrapper" style={{ flex: 1.4 }}>
+                        <label>Tournament</label>
+                        <select
+                            value={selectedTournament}
+                            onChange={(e) => setSelectedTournament(e.target.value)}
+                            className="premium-select"
+                        >
+                            <option value="">Select Tournament...</option>
+                            {tournaments.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                        </select>
+                    </div>
 
-                    <select
-                        value={selectedRound}
-                        onChange={(e) => setSelectedRound(e.target.value)}
-                        style={{ flex: 1, padding: '0.75rem', borderRadius: '6px', background: 'var(--surface-color)', border: '1px solid var(--border-color)', color: 'white', fontSize: '0.9rem' }}
-                    >
-                        <option value="">Select Round...</option>
-                        {schedule.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
-                    </select>
+                    <div className="premium-select-wrapper">
+                        <label>Day / Round</label>
+                        <select
+                            value={selectedRound}
+                            onChange={(e) => setSelectedRound(e.target.value)}
+                            className="premium-select"
+                            disabled={!selectedTournament}
+                        >
+                            <option value="">{selectedTournament ? 'Select Round...' : 'Choose Tournament First'}</option>
+                            {schedule.map(r => <option key={r.id} value={r.id}>{r.label}</option>)}
+                        </select>
+                    </div>
                 </div>
             </div>
 
@@ -835,10 +895,10 @@ export default function OcrTest() {
             {showDebug && debugImgUrls.length > 0 && (
                 <div className="card" style={{ marginBottom: '1.5rem', padding: '1.2rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
-                        <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800' }}>Analyzed Fragments (Refined Slots)</h3>
+                        <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '800' }}>Analyzed Fragments (Precision Refined)</h3>
                         <div className="debug-info">
                             <Info size={16} />
-                            <span>Boundary check: Slots 4/5 split height adjusted.</span>
+                            <span>Zooming on Slot 1, Shifting Slot 2 Up, and resolved Slot 4/5 bleed.</span>
                         </div>
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '1rem' }}>
@@ -857,8 +917,8 @@ export default function OcrTest() {
                     <div className="metrics-header">
                         <div style={{ textAlign: 'center' }}>
                             <div style={{ fontSize: '0.65rem', color: '#94a3b8', textTransform: 'uppercase', marginBottom: '4px', fontWeight: '900', letterSpacing: '0.05em' }}>Success Rate</div>
-                            <div style={{ fontSize: '1.5rem', fontWeight: '900', color: (results.filter(r => !r.matchedPlayer.isUnknown).length / results.length > 0.9 ? '#10b981' : (results.filter(r => !r.matchedPlayer.isUnknown).length / results.length > 0.7 ? '#f59e0b' : '#ef4444')) }}>
-                                {Math.round((results.filter(r => !r.matchedPlayer.isUnknown).length / results.length) * 100)}%
+                            <div style={{ fontSize: '1.5rem', fontWeight: '900', color: (results.length > 0 && results.filter(r => !r.matchedPlayer.isUnknown).length / results.length > 0.7 ? '#10b981' : '#ef4444') }}>
+                                {results.length > 0 ? Math.round((results.filter(r => !r.matchedPlayer.isUnknown).length / results.length) * 100) : 0}%
                             </div>
                         </div>
                         <div style={{ height: '32px', width: '1px', background: '#334155' }}></div>
@@ -880,137 +940,143 @@ export default function OcrTest() {
                         </div>
 
                         <div className="rank-grid">
-                            {Array.from(new Set(results.map(r => r.rank))).sort((a, b) => (a === "?" ? 999 : (b === "?" ? -999 : a - b))).map(rank => {
-                                const rankRes = results.filter(r => r.rank === rank);
-                                const identifiedTeam = rankRes.find(r => !r.matchedPlayer.isUnknown)?.teamId;
+                            {Array.from(new Set(results.map(r => r.rank || "?")))
+                                .sort((a, b) => {
+                                    if (a === "?") return 1;
+                                    if (b === "?") return -1;
+                                    return (parseInt(a) || 0) - (parseInt(b) || 0);
+                                })
+                                .map(rank => {
+                                    const rankRes = results.filter(r => r.rank === rank);
+                                    const identifiedTeam = rankRes.find(r => !r.matchedPlayer.isUnknown)?.teamId;
 
-                                return (
-                                    <div key={rank} style={{
-                                        padding: '1.2rem',
-                                        background: '#1e293b',
-                                        borderRadius: '12px',
-                                        border: `1px solid ${rank === 1 ? '#eab308' : (rank === "?" ? '#ef4444' : '#334155')}`
-                                    }}>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.4rem' }}>
-                                            <h4 style={{ margin: 0, color: rank === 1 ? '#eab308' : (rank === "?" ? '#ef4444' : 'white'), fontSize: '0.9rem', fontWeight: '900', letterSpacing: '0.1em' }}>
-                                                {rank === "?" ? "UNASSIGNED DETECTIONS" : `RANK ${rank}`}
-                                            </h4>
-                                            {rank !== "?" && <button onClick={() => addEmptyMember(rank)} className="btn btn-outline sm" style={{ fontSize: '0.7rem', padding: '0.4rem 0.8rem' }}>+ Member</button>}
-                                        </div>
-
-                                        <div className="member-grid">
-                                            {rankRes.map((res) => {
-                                                const idx = results.findIndex(r => r.id === res.id);
-                                                const currentOptions = identifiedTeam
-                                                    ? players.filter(p => p.team_id === identifiedTeam)
-                                                    : players;
-
-                                                return (
-                                                    <div key={res.id} className="player-card" style={{
-                                                        border: `1px solid ${res.matchedPlayer.isUnknown ? '#ef4444' : (res.isDuplicate ? '#f59e0b' : '#334155')}`
-                                                    }}>
-                                                        <div style={{ fontSize: '0.6rem', color: '#64748b', marginBottom: '4px', fontStyle: 'italic', fontWeight: '600' }}>
-                                                            {res.isManual ? 'MANUAL' : `OCR: "${res.ocrName}"`}
-                                                        </div>
-
-                                                        <div className="player-row">
-                                                            <input
-                                                                value={res.editedText}
-                                                                onChange={(e) => saveEdit(idx, e.target.value)}
-                                                                placeholder="Name"
-                                                                style={{ flex: 1, padding: '0.45rem', borderRadius: '6px', border: '1px solid #334155', background: '#1e293b', color: 'white', fontSize: '0.85rem' }}
-                                                            />
-                                                            <div className="kill-badge">
-                                                                <label>K</label>
-                                                                <input
-                                                                    type="text"
-                                                                    value={res.kills}
-                                                                    placeholder="0"
-                                                                    onChange={(e) => {
-                                                                        const next = [...results];
-                                                                        const val = e.target.value;
-                                                                        if (val === "" || /^\d+$/.test(val)) {
-                                                                            next[idx].kills = val;
-                                                                            setResults(next);
-                                                                        }
-                                                                    }}
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        {res.matchedPlayer.isUnknown ? (
-                                                            <select
-                                                                value={res.matchedPlayer?.isGuest ? `team_${res.teamId}` : ""}
-                                                                onChange={(e) => handleManualMap(idx, e.target.value)}
-                                                                style={{ padding: '0.4rem', background: '#0a0f1e', border: '1px solid #ef4444', color: '#ef4444', width: '100%', fontSize: '0.7rem', borderRadius: '6px', fontWeight: '700' }}
-                                                            >
-                                                                <option value="">Choose Player...</option>
-                                                                {currentOptions.length > 0 && identifiedTeam && (
-                                                                    <optgroup label="Likely Team Members">
-                                                                        {currentOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                                                    </optgroup>
-                                                                )}
-                                                                <optgroup label="All Tournament Players">
-                                                                    {players.filter(p => !identifiedTeam || p.team_id !== identifiedTeam).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                                                                </optgroup>
-                                                                <optgroup label="Standalone Team Member">
-                                                                    {teams.map(t => <option key={t.id} value={`team_${t.id}`}>{t.name}</option>)}
-                                                                </optgroup>
-                                                            </select>
-                                                        ) : (
-                                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px' }}>
-                                                                <div style={{ minWidth: 0, flex: 1 }}>
-                                                                    <div style={{ fontSize: '0.9rem', fontWeight: '900', color: '#0ea5e9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{res.matchedPlayer.name}</div>
-                                                                    <div style={{ fontSize: '0.7rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{res.matchedPlayer.teams?.name}</div>
-                                                                </div>
-                                                                {res.isDuplicate && <AlertTriangle size={16} color="#f59e0b" />}
-                                                            </div>
-                                                        )}
-
-                                                        <button
-                                                            onClick={() => handleRematch(idx)}
-                                                            className="rematch-btn"
-                                                            title="Apply Manual Correction"
-                                                        >
-                                                            <RefreshCw size={14} />
-                                                        </button>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
-
-                                        {rank !== "?" && (
-                                            <div className="point-inputs">
-                                                <div className="point-field">
-                                                    <label>Bonus Points</label>
-                                                    <input
-                                                        type="text"
-                                                        placeholder="0"
-                                                        value={teamPoints[rank]?.bonus || ""}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            if (val === "" || /^\d+$/.test(val)) updateTeamPoints(rank, 'bonus', val);
-                                                        }}
-                                                    />
-                                                </div>
-                                                <div className="point-field">
-                                                    <label>Penalty Points</label>
-                                                    <input
-                                                        type="text"
-                                                        placeholder="0"
-                                                        style={{ color: '#ef4444' }}
-                                                        value={teamPoints[rank]?.penalty || ""}
-                                                        onChange={(e) => {
-                                                            const val = e.target.value;
-                                                            if (val === "" || /^\d+$/.test(val)) updateTeamPoints(rank, 'penalty', val);
-                                                        }}
-                                                    />
-                                                </div>
+                                    return (
+                                        <div key={rank} style={{
+                                            padding: '1.2rem',
+                                            background: '#1e293b',
+                                            borderRadius: '12px',
+                                            border: `1px solid ${rank === 1 ? '#eab308' : (rank === "?" ? '#ef4444' : '#334155')}`
+                                        }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.4rem' }}>
+                                                <h4 style={{ margin: 0, color: rank === 1 ? '#eab308' : (rank === "?" ? '#ef4444' : 'white'), fontSize: '0.9rem', fontWeight: '900', letterSpacing: '0.1em' }}>
+                                                    {rank === "?" ? "UNASSIGNED DETECTIONS" : `RANK ${rank}`}
+                                                </h4>
+                                                {rank !== "?" && <button onClick={() => addEmptyMember(rank)} className="btn btn-outline sm" style={{ fontSize: '0.7rem', padding: '0.4rem 0.8rem' }}>+ Member</button>}
                                             </div>
-                                        )}
-                                    </div>
-                                );
-                            })}
+
+                                            <div className="member-grid">
+                                                {rankRes.map((res) => {
+                                                    const idx = results.findIndex(r => r.id === res.id);
+                                                    const currentOptions = identifiedTeam
+                                                        ? players.filter(p => p.team_id === identifiedTeam)
+                                                        : players;
+
+                                                    return (
+                                                        <div key={res.id} className="player-card" style={{
+                                                            border: `1px solid ${res.matchedPlayer.isUnknown ? '#ef4444' : (res.isDuplicate ? '#f59e0b' : '#334155')}`
+                                                        }}>
+                                                            <div style={{ fontSize: '0.6rem', color: '#64748b', marginBottom: '4px', fontStyle: 'italic', fontWeight: '600' }}>
+                                                                {res.isManual ? 'MANUAL' : `OCR: "${res.ocrName}"`}
+                                                            </div>
+
+                                                            <div className="player-row">
+                                                                <input
+                                                                    value={res.editedText}
+                                                                    onChange={(e) => saveEdit(idx, e.target.value)}
+                                                                    placeholder="Name"
+                                                                    style={{ flex: 1, padding: '0.45rem', borderRadius: '6px', border: '1px solid #334155', background: '#1e293b', color: 'white', fontSize: '0.85rem' }}
+                                                                />
+                                                                <div className="kill-badge">
+                                                                    <label>K</label>
+                                                                    <input
+                                                                        type="text"
+                                                                        value={res.kills}
+                                                                        placeholder="0"
+                                                                        onChange={(e) => {
+                                                                            const next = [...results];
+                                                                            const val = e.target.value;
+                                                                            if (val === "" || /^\d+$/.test(val)) {
+                                                                                next[idx].kills = val;
+                                                                                setResults(next);
+                                                                            }
+                                                                        }}
+                                                                    />
+                                                                </div>
+                                                            </div>
+
+                                                            {res.matchedPlayer.isUnknown ? (
+                                                                <select
+                                                                    value={res.matchedPlayer?.isGuest ? `team_${res.teamId}` : ""}
+                                                                    onChange={(e) => handleManualMap(idx, e.target.value)}
+                                                                    style={{ padding: '0.4rem', background: '#0a0f1e', border: '1px solid #ef4444', color: '#ef4444', width: '100%', fontSize: '0.7rem', borderRadius: '6px', fontWeight: '700' }}
+                                                                >
+                                                                    <option value="">Choose Player...</option>
+                                                                    {currentOptions.length > 0 && identifiedTeam && (
+                                                                        <optgroup label="Likely Team Members">
+                                                                            {currentOptions.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                                                        </optgroup>
+                                                                    )}
+                                                                    <optgroup label="All Tournament Players">
+                                                                        {players.filter(p => !identifiedTeam || p.team_id !== identifiedTeam).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                                                                    </optgroup>
+                                                                    <optgroup label="Standalone Team Member">
+                                                                        {teams.map(t => <option key={t.id} value={`team_${t.id}`}>{t.name}</option>)}
+                                                                    </optgroup>
+                                                                </select>
+                                                            ) : (
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '4px 6px' }}>
+                                                                    <div style={{ minWidth: 0, flex: 1 }}>
+                                                                        <div style={{ fontSize: '0.9rem', fontWeight: '900', color: '#0ea5e9', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{res.matchedPlayer.name}</div>
+                                                                        <div style={{ fontSize: '0.7rem', color: '#64748b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{res.matchedPlayer.teams?.name}</div>
+                                                                    </div>
+                                                                    {res.isDuplicate && <AlertTriangle size={16} color="#f59e0b" />}
+                                                                </div>
+                                                            )}
+
+                                                            <button
+                                                                onClick={() => handleRematch(idx)}
+                                                                className="rematch-btn"
+                                                                title="Apply Manual Correction"
+                                                            >
+                                                                <RefreshCw size={14} />
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {rank !== "?" && (
+                                                <div className="point-inputs">
+                                                    <div className="point-field">
+                                                        <label>Bonus Points</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="0"
+                                                            value={teamPoints[rank]?.bonus || ""}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                if (val === "" || /^\d+$/.test(val)) updateTeamPoints(rank, 'bonus', val);
+                                                            }}
+                                                        />
+                                                    </div>
+                                                    <div className="point-field">
+                                                        <label>Penalty Points</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="0"
+                                                            style={{ color: '#ef4444' }}
+                                                            value={teamPoints[rank]?.penalty || ""}
+                                                            onChange={(e) => {
+                                                                const val = e.target.value;
+                                                                if (val === "" || /^\d+$/.test(val)) updateTeamPoints(rank, 'penalty', val);
+                                                            }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                         </div>
                     </div>
 
